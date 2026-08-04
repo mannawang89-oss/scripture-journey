@@ -22,21 +22,21 @@ export default function App() {
           path="/bible/:book/:chapter"
           element={<ChapterPage />}
         />
+<Route
+  path="/sermons"
+  element={<SermonsPage />}
+/>
 
-        <Route
-          path="/sermons"
-          element={<SermonsPage />}
-        />
+<Route
+  path="/sermons/:id"
+  element={<SermonDetailPage />}
+/>
 
-        <Route
-          path="/sermons/:id"
-          element={<SermonDetailPage />}
-        />
-
-        <Route
-          path="*"
-          element={<NotFoundPage />}
-        />
+<Route
+  path="*"
+  element={<NotFoundPage />}
+/>
+  
       </Route>
     </Routes>
   )
