@@ -558,3 +558,28 @@ button { cursor: pointer; }
     grid-template-columns: repeat(7, 1fr);
   }
 }
+.scripture-reading {
+  padding: 46px 0 34px;
+  border-bottom: 1px solid var(--line);
+}
+
+.scripture-verse {
+  max-width: 760px;
+  margin: 0 0 18px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 21px;
+  line-height: 2;
+  letter-spacing: .01em;
+}
+
+.scripture-verse sup {
+  position: relative;
+  top: -.35em;
+  display: inline-block;
+  min-width: 24px;
+  margin-right: 8px;
+  color: var(--accent);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+}
