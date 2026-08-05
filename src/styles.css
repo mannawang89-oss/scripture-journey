@@ -871,3 +871,123 @@ width:100%;
 }
 
 }
+/* ===========================
+   Sermon Study Accordion
+=========================== */
+
+.sermon-study-notes {
+  margin-top: 72px;
+  padding-top: 42px;
+  border-top: 1px solid var(--line);
+}
+
+.sermon-study-notes-heading {
+  margin-bottom: 30px;
+}
+
+.sermon-study-notes-heading h2 {
+  margin: 9px 0 10px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 32px;
+}
+
+.sermon-study-notes-heading > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.sermon-accordion-list {
+  border-top: 1px solid var(--line);
+}
+
+.sermon-accordion-section {
+  border-bottom: 1px solid var(--line);
+}
+
+.sermon-accordion-trigger {
+  width: 100%;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 20px 4px;
+  text-align: left;
+}
+
+.sermon-accordion-trigger:hover {
+  color: var(--accent);
+}
+
+.sermon-accordion-trigger span {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.sermon-accordion-trigger small {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .18em;
+}
+
+.sermon-accordion-trigger strong {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 23px;
+  font-weight: 600;
+}
+
+.sermon-accordion-chevron {
+  flex: 0 0 auto;
+  color: var(--muted);
+  transition: transform .22s ease;
+}
+
+.sermon-accordion-section.is-open
+.sermon-accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.sermon-accordion-content {
+  padding: 0 46px 30px 4px;
+  animation: sermonAccordionOpen .2s ease;
+}
+
+.sermon-accordion-content .sermon-rich-copy {
+  max-width: 720px;
+}
+
+@keyframes sermonAccordionOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 620px) {
+  .sermon-study-notes {
+    margin-top: 52px;
+  }
+
+  .sermon-accordion-trigger {
+    min-height: 78px;
+  }
+
+  .sermon-accordion-trigger strong {
+    font-size: 20px;
+  }
+
+  .sermon-accordion-content {
+    padding-right: 4px;
+  }
+}
