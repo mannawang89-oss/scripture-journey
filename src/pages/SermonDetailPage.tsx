@@ -484,7 +484,7 @@ export default function SermonDetailPage() {
 
             <ContentSection
               eyebrow="KEY QUOTES"
-              title="重要金句"
+              title="要点摘要"
               content={sermon.key_quotes}
               className="sermon-quotes-copy"
             />
