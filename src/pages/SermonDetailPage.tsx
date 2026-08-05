@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   CalendarDays,
+  ChevronDown,
   Copy,
   ExternalLink,
   Mic2,
@@ -41,6 +42,31 @@ type ContentSectionProps = {
   className?: string
 }
 
+type AccordionSectionProps = {
+  eyebrow: string
+  title: string
+  content: string | null
+  isOpen: boolean
+  onToggle: () => void
+}
+
+function RenderContent({ content }: { content: string | null }) {
+  if (!content) {
+    return <p className="sermon-empty-copy">内容待整理。</p>
+  }
+
+  return (
+    <>
+      {content
+        .split(/\n+/)
+        .filter(Boolean)
+        .map((paragraph, index) => (
+          <p key={`${paragraph}-${index}`}>{paragraph}</p>
+        ))}
+    </>
+  )
+}
+
 function ContentSection({
   eyebrow,
   title,
@@ -53,17 +79,49 @@ function ContentSection({
       <h2>{title}</h2>
 
       <div className="sermon-rich-copy">
-        {content ? (
-          content
-            .split(/\n+/)
-            .filter(Boolean)
-            .map((paragraph, index) => (
-              <p key={`${title}-${index}`}>{paragraph}</p>
-            ))
-        ) : (
-          <p className="sermon-empty-copy">内容待整理。</p>
-        )}
+        <RenderContent content={content} />
       </div>
+    </section>
+  )
+}
+
+function AccordionSection({
+  eyebrow,
+  title,
+  content,
+  isOpen,
+  onToggle,
+}: AccordionSectionProps) {
+  return (
+    <section
+      className={`sermon-accordion-section ${
+        isOpen ? 'is-open' : ''
+      }`}
+    >
+      <button
+        className="sermon-accordion-trigger"
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+      >
+        <span>
+          <small>{eyebrow}</small>
+          <strong>{title}</strong>
+        </span>
+
+        <ChevronDown
+          className="sermon-accordion-chevron"
+          size={20}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="sermon-accordion-content">
+          <div className="sermon-rich-copy">
+            <RenderContent content={content} />
+          </div>
+        </div>
+      )}
     </section>
   )
 }
@@ -75,6 +133,10 @@ export default function SermonDetailPage() {
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [copyMessage, setCopyMessage] = useState('')
+
+  const [openSections, setOpenSections] = useState<
+    Record<string, boolean>
+  >({})
 
   useEffect(() => {
     async function loadSermon() {
@@ -152,6 +214,13 @@ export default function SermonDetailPage() {
     }).format(new Date(`${date}T00:00:00`))
   }
 
+  function toggleSection(sectionName: string) {
+    setOpenSections((current) => ({
+      ...current,
+      [sectionName]: !current[sectionName],
+    }))
+  }
+
   async function copyAiPrompt() {
     if (!sermon) return
 
@@ -174,7 +243,7 @@ export default function SermonDetailPage() {
 按照讲道真实结构整理一级和二级标题，不要强行凑成三点式。
 
 ## 重要金句
-只保留能够确认是讲员实际表达过的内容。无法确认原话时标注“意译”。
+只保留能够确认是讲员实际表达过的内容。无法确认原话时标注意译。
 
 ## 引用经文
 列出讲道中实际引用或重点解释的经文。
@@ -255,6 +324,45 @@ export default function SermonDetailPage() {
   ]
 
   const uniqueTags = Array.from(new Set(allTags))
+
+  const studySections = [
+    {
+      id: 'historical-background',
+      eyebrow: 'HISTORICAL BACKGROUND',
+      title: '历史背景',
+      content: sermon.historical_background,
+    },
+    {
+      id: 'literary-context',
+      eyebrow: 'LITERARY CONTEXT',
+      title: '文学上下文',
+      content: sermon.literary_context,
+    },
+    {
+      id: 'original-language',
+      eyebrow: 'ORIGINAL LANGUAGE',
+      title: '原文重点',
+      content: sermon.original_language,
+    },
+    {
+      id: 'christ-centered',
+      eyebrow: 'CHRIST-CENTERED READING',
+      title: '基督中心',
+      content: sermon.christ_centered,
+    },
+    {
+      id: 'biblical-connections',
+      eyebrow: 'BIBLICAL CONNECTIONS',
+      title: '整本圣经连接',
+      content: sermon.biblical_connections,
+    },
+    {
+      id: 'speaker-insights',
+      eyebrow: 'SPEAKER INSIGHTS',
+      title: '讲员特色',
+      content: sermon.speaker_insights,
+    },
+  ]
 
   return (
     <section className="page-section sermon-detail-page">
@@ -381,41 +489,34 @@ export default function SermonDetailPage() {
               className="sermon-quotes-copy"
             />
 
-            <ContentSection
-              eyebrow="HISTORICAL BACKGROUND"
-              title="历史背景"
-              content={sermon.historical_background}
-            />
+            <section className="sermon-study-notes">
+              <div className="sermon-study-notes-heading">
+                <p className="sermon-section-eyebrow">
+                  STUDY NOTES
+                </p>
+                <h2>深入研读</h2>
+                <p>
+                  点击各栏目展开历史、原文、互文与基督中心分析。
+                </p>
+              </div>
 
-            <ContentSection
-              eyebrow="LITERARY CONTEXT"
-              title="文学上下文"
-              content={sermon.literary_context}
-            />
-
-            <ContentSection
-              eyebrow="ORIGINAL LANGUAGE"
-              title="原文重点"
-              content={sermon.original_language}
-            />
-
-            <ContentSection
-              eyebrow="CHRIST-CENTERED READING"
-              title="基督中心"
-              content={sermon.christ_centered}
-            />
-
-            <ContentSection
-              eyebrow="BIBLICAL CONNECTIONS"
-              title="整本圣经连接"
-              content={sermon.biblical_connections}
-            />
-
-            <ContentSection
-              eyebrow="SPEAKER INSIGHTS"
-              title="讲员特色"
-              content={sermon.speaker_insights}
-            />
+              <div className="sermon-accordion-list">
+                {studySections.map((section) => (
+                  <AccordionSection
+                    key={section.id}
+                    eyebrow={section.eyebrow}
+                    title={section.title}
+                    content={section.content}
+                    isOpen={Boolean(
+                      openSections[section.id],
+                    )}
+                    onToggle={() =>
+                      toggleSection(section.id)
+                    }
+                  />
+                ))}
+              </div>
+            </section>
           </main>
 
           <aside className="sermon-detail-sidebar">
