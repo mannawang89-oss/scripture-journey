@@ -96,13 +96,65 @@ button { cursor: pointer; }
 .search-box input { border: 0; outline: 0; background: transparent; width: 100%; }
 
 .book-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.book-card { background: var(--paper); border: 1px solid var(--line); padding: 28px; min-height: 290px; display: flex; flex-direction: column; }
-.book-card > span { color: var(--accent); letter-spacing: .16em; font-size: 10px; }
-.book-card h3 { font-size: 27px; margin: 28px 0 2px; }
-.book-en { margin-top: 0; color: var(--muted); }
-.book-card > p:last-of-type { color: var(--muted); line-height: 1.7; flex: 1; }
-.book-meta { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; }
-.book-meta a { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); }
+.book-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 22px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.book-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(60, 40, 20, .08);
+}
+
+.book-card > span {
+  color: var(--accent);
+  letter-spacing: .18em;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.book-card h3 {
+  font-size: 22px;
+  margin: 16px 0 4px;
+}
+
+.book-en {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.book-card > p:last-of-type {
+  color: var(--muted);
+  line-height: 1.7;
+  flex: 1;
+}
+
+.book-meta {
+  border-top: 1px solid var(--line);
+  margin-top: auto;
+  padding-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.book-meta small {
+  font-size: 14px;
+}
+
+.book-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 600;
+}
 
 .reading-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 64px; align-items: start; }
 .reading-main { max-width: 780px; }
@@ -645,7 +697,7 @@ button { cursor: pointer; }
   font-size:14px;
 }
 
-/* ---------- 播放器 ---------- */
+/* ---------- 鎾斁鍣� ---------- */
 
 .sermon-player-panel{
   padding:28px 32px;
@@ -759,7 +811,7 @@ button { cursor: pointer; }
   background:var(--paper);
 }
 
-/* ---------- 内容 ---------- */
+/* ---------- 鍐呭 ---------- */
 
 .sermon-content-grid{
   display:grid;
