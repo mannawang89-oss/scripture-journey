@@ -1,210 +1,250 @@
-import { ArrowRight, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-
-import SectionHeading from '../components/SectionHeading'
-import { supabase } from '../lib/supabase'
-import './BibleBooksPage.css'
-
-type BibleBook = {
-  id: number
-  testament: 'old' | 'new'
-  book_order: number
-  name_zh: string
-  name_en: string | null
-  abbreviation: string | null
-  chapter_count: number
+.bible-directory-page {
+  min-height: 70vh;
 }
 
-export default function BibleBooksPage() {
-  const [books, setBooks] = useState<BibleBook[]>([])
-  const [testament, setTestament] = useState<'all' | 'old' | 'new'>(
-    'all',
-  )
-  const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
+.bible-directory-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 34px;
+}
 
-  useEffect(() => {
-    async function loadBooks() {
-      setLoading(true)
-      setErrorMessage('')
+.bible-directory-header .section-heading {
+  margin-bottom: 0;
+}
 
-      const { data, error } = await supabase
-        .from('bible_books')
-        .select(
-          'id, testament, book_order, name_zh, name_en, abbreviation, chapter_count',
-        )
-        .order('book_order', { ascending: true })
+.bible-directory-search {
+  width: min(320px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
 
-      if (error) {
-        console.error(error)
-        setErrorMessage('书卷读取失败，请稍后刷新页面。')
-        setBooks([])
-      } else {
-        setBooks((data ?? []) as BibleBook[])
-      }
+.bible-directory-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+}
 
-      setLoading(false)
-    }
+.bible-directory-search input::placeholder {
+  color: var(--muted);
+}
 
-    loadBooks()
-  }, [])
+.bible-directory-filter {
+  display: flex;
+  gap: 26px;
+  margin-bottom: 62px;
+  border-bottom: 1px solid var(--line);
+}
 
-  const filteredBooks = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
+.bible-directory-filter button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 0 14px;
+  font-size: 14px;
+}
 
-    return books.filter((book) => {
-      const matchesTestament =
-        testament === 'all' || book.testament === testament
+.bible-directory-filter button:hover,
+.bible-directory-filter button.active {
+  color: var(--accent);
+}
 
-      const matchesQuery =
-        !normalized ||
-        book.name_zh.includes(normalized) ||
-        (book.name_en ?? '').toLowerCase().includes(normalized) ||
-        (book.abbreviation ?? '').toLowerCase().includes(normalized)
+.bible-directory-filter button.active::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+}
 
-      return matchesTestament && matchesQuery
-    })
-  }, [books, query, testament])
+.bible-directory-content {
+  display: grid;
+  gap: 76px;
+}
 
-  const oldTestamentBooks = filteredBooks.filter(
-    (book) => book.testament === 'old',
-  )
+.bible-directory-section {
+  max-width: 960px;
+}
 
-  const newTestamentBooks = filteredBooks.filter(
-    (book) => book.testament === 'new',
-  )
+.bible-directory-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--ink);
+}
 
-  function renderBookDirectory(
-    titleZh: string,
-    titleEn: string,
-    sectionBooks: BibleBook[],
-  ) {
-    if (sectionBooks.length === 0) return null
+.bible-directory-section-heading p {
+  margin: 0 0 7px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .2em;
+}
 
-    return (
-      <section className="bible-directory-section">
-        <header className="bible-directory-section-heading">
-          <div>
-            <p>{titleEn}</p>
-            <h2>{titleZh}</h2>
-          </div>
+.bible-directory-section-heading h2 {
+  margin: 0;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 31px;
+  font-weight: 600;
+}
 
-          <span>{sectionBooks.length} 卷</span>
-        </header>
+.bible-directory-section-heading > span {
+  padding-bottom: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
 
-        <div className="bible-directory-list">
-          {sectionBooks.map((book) => (
-            <Link
-              className="bible-directory-row"
-              key={book.id}
-              to={`/bible/${encodeURIComponent(
-                book.name_en ??
-                  book.abbreviation ??
-                  String(book.id),
-              )}/1`}
-            >
-              <span className="bible-directory-number">
-                {String(book.book_order).padStart(2, '0')}
-              </span>
+.bible-directory-list {
+  border-bottom: 1px solid var(--line);
+}
 
-              <span className="bible-directory-name">
-                <strong>{book.name_zh}</strong>
-                <small>{book.name_en ?? book.abbreviation}</small>
-              </span>
+.bible-directory-row {
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: 46px minmax(150px, 240px) minmax(30px, 1fr) 72px 28px;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  transition:
+    color .2s ease,
+    padding .2s ease,
+    background .2s ease;
+}
 
-              <span className="bible-directory-dots" />
+.bible-directory-row:last-child {
+  border-bottom: 0;
+}
 
-              <span className="bible-directory-chapters">
-                {book.chapter_count} 章
-              </span>
+.bible-directory-row:hover {
+  padding-right: 10px;
+  padding-left: 10px;
+  background: rgba(251, 248, 242, .7);
+  color: var(--accent);
+}
 
-              <span className="bible-directory-arrow">
-                <ArrowRight size={17} />
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-    )
+.bible-directory-number {
+  color: var(--muted);
+  font-family: Georgia, serif;
+  font-size: 12px;
+  letter-spacing: .08em;
+}
+
+.bible-directory-name {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.bible-directory-name strong {
+  min-width: 80px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.bible-directory-name small {
+  color: var(--muted);
+  font-family: Georgia, serif;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.bible-directory-dots {
+  height: 1px;
+  border-top: 1px dotted rgba(116, 107, 98, .55);
+}
+
+.bible-directory-chapters {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bible-directory-arrow {
+  display: flex;
+  justify-content: flex-end;
+  color: var(--accent);
+  opacity: .62;
+  transition:
+    opacity .2s ease,
+    transform .2s ease;
+}
+
+.bible-directory-row:hover .bible-directory-arrow {
+  opacity: 1;
+  transform: translateX(4px);
+}
+
+.bible-directory-status {
+  padding: 56px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .bible-directory-header {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  return (
-    <section className="page-section bible-directory-page">
-      <div className="container">
-        <div className="bible-directory-header">
-          <SectionHeading
-            eyebrow="66 BOOKS"
-            title="圣经目录"
-          />
+  .bible-directory-search {
+    width: 100%;
+  }
 
-          <label className="bible-directory-search">
-            <Search size={17} />
+  .bible-directory-filter {
+    margin-bottom: 46px;
+  }
 
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索书卷"
-            />
-          </label>
-        </div>
+  .bible-directory-row {
+    min-height: 76px;
+    grid-template-columns: 32px minmax(0, 1fr) auto 22px;
+    gap: 12px;
+  }
 
-        <div className="bible-directory-filter">
-          {[
-            ['all', '全部'],
-            ['old', '旧约'],
-            ['new', '新约'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={testament === value ? 'active' : ''}
-              onClick={() =>
-                setTestament(value as 'all' | 'old' | 'new')
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+  .bible-directory-name {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
 
-        {loading && (
-          <div className="bible-directory-status">
-            正在读取 66 卷圣经……
-          </div>
-        )}
+  .bible-directory-name strong {
+    min-width: 0;
+    font-size: 18px;
+  }
 
-        {!loading && errorMessage && (
-          <div className="bible-directory-status">
-            {errorMessage}
-          </div>
-        )}
+  .bible-directory-dots {
+    display: none;
+  }
 
-        {!loading &&
-          !errorMessage &&
-          filteredBooks.length === 0 && (
-            <div className="bible-directory-status">
-              没有找到对应书卷。
-            </div>
-          )}
+  .bible-directory-chapters {
+    font-size: 12px;
+  }
+}
 
-        {!loading && !errorMessage && filteredBooks.length > 0 && (
-          <div className="bible-directory-content">
-            {renderBookDirectory(
-              '旧约',
-              'OLD TESTAMENT',
-              oldTestamentBooks,
-            )}
+@media (max-width: 440px) {
+  .bible-directory-section-heading h2 {
+    font-size: 27px;
+  }
 
-            {renderBookDirectory(
-              '新约',
-              'NEW TESTAMENT',
-              newTestamentBooks,
-            )}
-          </div>
-        )}
-      </div>
-    </section>
-  )
+  .bible-directory-row {
+    grid-template-columns: minmax(0, 1fr) auto 20px;
+  }
+
+  .bible-directory-number {
+    display: none;
+  }
 }
