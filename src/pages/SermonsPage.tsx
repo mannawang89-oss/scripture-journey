@@ -84,7 +84,6 @@ export default function SermonsPage() {
           <SectionHeading
             eyebrow="SERMON ARCHIVE"
             title="讲道资源"
-            description="保存音频、摘要、中心思想、大纲、经文与个人回应。"
           />
 
           <label className="sermon-search">
