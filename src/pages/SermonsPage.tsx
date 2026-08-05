@@ -148,15 +148,18 @@ export default function SermonsPage() {
                   </div>
 
                   {sermon.summary && (
-                    <p className="sermon-card-summary">
+                    <p className="sermon-card-summary line-clamp-2">
                       {sermon.summary}
                     </p>
                   )}
                 </div>
 
                 <div className="sermon-card-footer">
-                  <Link to={`/sermons/${sermon.id}`}>
-                    打开讲道
+                  <Link
+                    to={`/sermons/${sermon.id}`}
+                    className="sermon-detail-button"
+                  >
+                    打开详情
                   </Link>
                 </div>
               </article>
