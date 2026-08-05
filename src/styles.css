@@ -991,3 +991,42 @@ width:100%;
     padding-right: 4px;
   }
 }
+/* ===========================
+   Sermon Card
+=========================== */
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.sermon-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 10px 22px;
+
+  border-radius: 999px;
+
+  background: #7b4a2d;
+
+  color: white !important;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  text-decoration: none;
+
+  transition: all .25s ease;
+}
+
+.sermon-detail-button:hover {
+  background: #694027;
+
+  transform: translateY(-2px);
+
+  box-shadow: 0 8px 20px rgba(123,74,45,.22);
+}
