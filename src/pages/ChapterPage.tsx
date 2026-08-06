@@ -1,10 +1,9 @@
 import {
-  Bookmark,
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
-  Languages,
-  NotebookPen,
-  Sparkles,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -14,183 +13,184 @@ import { supabase } from '../lib/supabase'
 type BibleBook = {
   id: number
   name_zh: string
-  name_en: string
+  name_en: string | null
   abbreviation: string | null
   chapter_count: number
-  testament: 'old' | 'new'
-}
-
-type BibleVerse = {
-  id: number
-  verse_number: number
-  verse_text: string
 }
 
 type BibleTranslation = {
   id: number
   code: string
   name_zh: string
-  name_original: string
+  name_original: string | null
   language_code: string
 }
 
+type BibleVerse = {
+  id: number
+  verse_number: number
+  verse_text: string
+  paragraph_start: boolean | null
+}
+
 export default function ChapterPage() {
-  const { book = 'Luke', chapter = '1' } = useParams()
+  const params = useParams()
   const navigate = useNavigate()
 
-  const decodedBook = decodeURIComponent(book)
-  const currentChapter = Math.max(1, Number(chapter) || 1)
+  const bookKey =
+    params.bookKey ??
+    params.book ??
+    params.bookName ??
+    params.slug ??
+    ''
 
-  const [bookData, setBookData] = useState<BibleBook | null>(null)
-  const [allBooks, setAllBooks] = useState<BibleBook[]>([])
-  const [translations, setTranslations] = useState<BibleTranslation[]>([])
-  const [selectedTranslationId, setSelectedTranslationId] = useState(1)
+  const chapterParam =
+    params.chapterNumber ??
+    params.chapter ??
+    params.chapterId ??
+    '1'
+
+  const chapterNumber = Number(chapterParam) || 1
+
+  const [book, setBook] = useState<BibleBook | null>(null)
+  const [translations, setTranslations] = useState<
+    BibleTranslation[]
+  >([])
+  const [translationId, setTranslationId] = useState(1)
   const [verses, setVerses] = useState<BibleVerse[]>([])
-  const [loadingPage, setLoadingPage] = useState(true)
-  const [loadingVerses, setLoadingVerses] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
-    async function loadBaseData() {
-      setLoadingPage(true)
+    async function loadBookAndTranslations() {
+      setLoading(true)
       setErrorMessage('')
 
-      const [
-        { data: currentBook, error: currentBookError },
-        { data: books, error: booksError },
-        { data: translationRows, error: translationsError },
-      ] = await Promise.all([
-        supabase
-          .from('bible_books')
-          .select(
-            'id, name_zh, name_en, abbreviation, chapter_count, testament',
-          )
-          .or(
-            `name_en.eq.${decodedBook},abbreviation.eq.${decodedBook}`,
-          )
-          .maybeSingle(),
+      const decodedBookKey = decodeURIComponent(bookKey)
 
-        supabase
-          .from('bible_books')
-          .select(
-            'id, name_zh, name_en, abbreviation, chapter_count, testament',
-          )
-          .order('book_order', { ascending: true }),
+      const { data: bookData, error: bookError } = await supabase
+        .from('bible_books')
+        .select(
+          'id, name_zh, name_en, abbreviation, chapter_count',
+        )
+        .or(
+          [
+            `name_en.eq.${decodedBookKey}`,
+            `name_zh.eq.${decodedBookKey}`,
+            `abbreviation.eq.${decodedBookKey}`,
+          ].join(','),
+        )
+        .maybeSingle()
 
-        supabase
+      if (bookError || !bookData) {
+        console.error(bookError)
+        setErrorMessage('没有找到这卷圣经。')
+        setBook(null)
+        setLoading(false)
+        return
+      }
+
+      const { data: translationData, error: translationError } =
+        await supabase
           .from('bible_translations')
           .select(
             'id, code, name_zh, name_original, language_code',
           )
-          .order('id', { ascending: true }),
-      ])
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
 
-      if (
-        currentBookError ||
-        booksError ||
-        translationsError ||
-        !currentBook
-      ) {
-        console.error(
-          currentBookError ?? booksError ?? translationsError,
-        )
-        setErrorMessage('书卷资料读取失败，请稍后刷新页面。')
-        setBookData(null)
-        setAllBooks([])
+      if (translationError) {
+        console.error(translationError)
+        setErrorMessage('译本资料读取失败。')
         setTranslations([])
       } else {
-        setBookData(currentBook as BibleBook)
-        setAllBooks((books ?? []) as BibleBook[])
         setTranslations(
-          (translationRows ?? []) as BibleTranslation[],
+          (translationData ?? []) as BibleTranslation[],
         )
       }
 
-      setLoadingPage(false)
+      setBook(bookData as BibleBook)
+      setLoading(false)
     }
 
-    loadBaseData()
-  }, [decodedBook])
-
-  const safeChapter = useMemo(() => {
-    if (!bookData) return 1
-    return Math.min(currentChapter, bookData.chapter_count)
-  }, [bookData, currentChapter])
+    loadBookAndTranslations()
+  }, [bookKey])
 
   useEffect(() => {
     async function loadVerses() {
-      if (!bookData) return
+      if (!book) return
 
-      setLoadingVerses(true)
+      setLoading(true)
       setErrorMessage('')
 
       const { data, error } = await supabase
         .from('bible_verses')
-        .select('id, verse_number, verse_text')
-        .eq('translation_id', selectedTranslationId)
-        .eq('book_id', bookData.id)
-        .eq('chapter_number', safeChapter)
+        .select(
+          'id, verse_number, verse_text, paragraph_start',
+        )
+        .eq('translation_id', translationId)
+        .eq('book_id', book.id)
+        .eq('chapter_number', chapterNumber)
         .order('verse_number', { ascending: true })
 
       if (error) {
         console.error(error)
-        setErrorMessage('本章经文读取失败，请稍后刷新。')
+        setErrorMessage('经文读取失败，请稍后刷新页面。')
         setVerses([])
       } else {
         setVerses((data ?? []) as BibleVerse[])
       }
 
-      setLoadingVerses(false)
+      setLoading(false)
     }
 
     loadVerses()
-  }, [bookData, safeChapter, selectedTranslationId])
+  }, [book, chapterNumber, translationId])
 
-  function goToBook(nameEn: string) {
-    navigate(`/bible/${encodeURIComponent(nameEn)}/1`)
-  }
+  const currentTranslation = useMemo(
+    () =>
+      translations.find(
+        (translation) => translation.id === translationId,
+      ),
+    [translationId, translations],
+  )
 
-  function goToChapter(chapterNumber: number) {
-    if (!bookData) return
+  function goToChapter(nextChapter: number) {
+    if (!book) return
+
+    const routeBookKey =
+      book.name_en ?? book.abbreviation ?? String(book.id)
 
     navigate(
-      `/bible/${encodeURIComponent(
-        bookData.name_en,
-      )}/${chapterNumber}`,
+      `/bible/${encodeURIComponent(routeBookKey)}/${nextChapter}`,
     )
   }
 
-  if (loadingPage) {
+  if (loading && !book) {
     return (
-      <section className="reader-status-page">
+      <main className="reader-status-page">
         <div className="container">
-          <p>正在读取章节内容……</p>
+          <p>正在读取圣经内容……</p>
         </div>
-      </section>
+      </main>
     )
   }
 
-  if (!bookData) {
+  if (errorMessage && !book) {
     return (
-      <section className="reader-status-page">
-        <div className="container reader-error">
+      <main className="reader-status-page reader-error">
+        <div className="container">
           <p>{errorMessage}</p>
-          <Link to="/bible">返回圣经书卷</Link>
+          <Link to="/bible">返回圣经目录</Link>
         </div>
-      </section>
+      </main>
     )
   }
 
-  const selectedTranslation =
-    translations.find(
-      (item) => item.id === selectedTranslationId,
-    ) ?? null
-
-  const hasPrevious = safeChapter > 1
-  const hasNext = safeChapter < bookData.chapter_count
+  if (!book) return null
 
   return (
-    <section className="reader-page">
+    <main className="reader-page">
       <div className="reader-topbar">
         <div className="container reader-topbar-inner">
           <div className="reader-selects">
@@ -198,16 +198,20 @@ export default function ChapterPage() {
               <span>书卷</span>
 
               <select
-                value={bookData.name_en}
+                value={book.name_en ?? book.abbreviation ?? ''}
                 onChange={(event) =>
-                  goToBook(event.target.value)
+                  navigate(
+                    `/bible/${encodeURIComponent(
+                      event.target.value,
+                    )}/1`,
+                  )
                 }
               >
-                {allBooks.map((item) => (
-                  <option key={item.id} value={item.name_en}>
-                    {item.name_zh} · {item.name_en}
-                  </option>
-                ))}
+                <option
+                  value={book.name_en ?? book.abbreviation ?? ''}
+                >
+                  {book.name_zh}
+                </option>
               </select>
             </label>
 
@@ -215,38 +219,30 @@ export default function ChapterPage() {
               <span>章节</span>
 
               <select
-                value={safeChapter}
+                value={chapterNumber}
                 onChange={(event) =>
                   goToChapter(Number(event.target.value))
                 }
               >
                 {Array.from(
-                  { length: bookData.chapter_count },
+                  { length: book.chapter_count },
                   (_, index) => index + 1,
-                ).map((chapterNumber) => (
-                  <option
-                    key={chapterNumber}
-                    value={chapterNumber}
-                  >
-                    第 {chapterNumber} 章
+                ).map((chapter) => (
+                  <option key={chapter} value={chapter}>
+                    第 {chapter} 章
                   </option>
                 ))}
               </select>
             </label>
-          </div>
 
-          <div className="reader-tools">
-            <label className="translation-select">
-              <Languages size={17} />
+            <label>
+              <span>译本</span>
 
               <select
-                value={selectedTranslationId}
+                value={translationId}
                 onChange={(event) =>
-                  setSelectedTranslationId(
-                    Number(event.target.value),
-                  )
+                  setTranslationId(Number(event.target.value))
                 }
-                aria-label="切换圣经译本"
               >
                 {translations.map((translation) => (
                   <option
@@ -258,21 +254,13 @@ export default function ChapterPage() {
                 ))}
               </select>
             </label>
+          </div>
 
-            <button type="button">
-              <Bookmark size={17} />
-              <span>收藏</span>
-            </button>
-
-            <button type="button">
-              <NotebookPen size={17} />
-              <span>笔记</span>
-            </button>
-
-            <button type="button">
-              <Sparkles size={17} />
-              <span>AI</span>
-            </button>
+          <div className="reader-tools">
+            <Link to="/bible">
+              <BookOpen size={17} />
+              <span>圣经目录</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -281,38 +269,60 @@ export default function ChapterPage() {
         <article className="reader-main">
           <header className="reader-header">
             <p className="reader-kicker">
-              {bookData.testament === 'old'
-                ? 'OLD TESTAMENT'
-                : 'NEW TESTAMENT'}
+              {currentTranslation?.code ?? 'BIBLE'}
             </p>
 
-            <h1>{bookData.name_zh}</h1>
+            <h1>
+              {book.name_zh} {chapterNumber}
+            </h1>
 
             <p className="reader-book-en">
-              {bookData.name_en}
+              {book.name_en}
             </p>
 
             <div className="reader-chapter-line">
-              <span>第 {safeChapter} 章</span>
-              <i />
-              <span>共 {bookData.chapter_count} 章</span>
+              <span>
+                第 {chapterNumber} 章
+              </span>
 
-              {selectedTranslation && (
-                <>
-                  <i />
-                  <span>{selectedTranslation.name_zh}</span>
-                </>
-              )}
+              <i />
+
+              <span>
+                {currentTranslation?.name_zh ?? '和合本'}
+              </span>
             </div>
           </header>
 
-          <section className="scripture-reading">
-            {loadingVerses ? (
-              <p className="reader-loading-copy">
-                正在切换译本……
-              </p>
-            ) : verses.length > 0 ? (
-              verses.map((verse) => (
+          {loading ? (
+            <section className="scripture-reading">
+              <p>正在读取经文……</p>
+            </section>
+          ) : errorMessage ? (
+            <section className="scripture-reading">
+              <p>{errorMessage}</p>
+            </section>
+          ) : verses.length === 0 ? (
+            <section className="reader-scripture-placeholder">
+              <div className="reader-placeholder-icon">
+                <BookOpen size={22} />
+              </div>
+
+              <div>
+                <p className="reader-placeholder-label">
+                  SCRIPTURE
+                </p>
+
+                <h2>本章经文尚未导入</h2>
+
+                <p>
+                  当前译本的这一章还没有经文内容，请先在
+                  Supabase 中完成导入。
+                </p>
+              </div>
+            </section>
+          ) : (
+            <section className="scripture-reading">
+              {verses.map((verse) => (
                 <p
                   className="scripture-verse"
                   key={verse.id}
@@ -320,71 +330,49 @@ export default function ChapterPage() {
                   <sup>{verse.verse_number}</sup>
                   {verse.verse_text}
                 </p>
-              ))
-            ) : (
-              <div className="translation-empty-state">
-                <p className="reader-placeholder-label">
-                  TRANSLATION NOT IMPORTED
-                </p>
-
-                <h2>这一译本尚未导入本章经文</h2>
-
-                <p>
-                  当前选择的是「
-                  {selectedTranslation?.name_zh ?? '未知译本'}
-                  」。数据库中暂时没有《
-                  {bookData.name_zh}》第 {safeChapter}{' '}
-                  章的内容。
-                </p>
-              </div>
-            )}
-          </section>
-
-          {errorMessage && (
-            <p className="reader-inline-error">
-              {errorMessage}
-            </p>
+              ))}
+            </section>
           )}
 
           <nav className="reader-bottom-nav">
-            {hasPrevious ? (
-              <Link
-                to={`/bible/${encodeURIComponent(
-                  bookData.name_en,
-                )}/${safeChapter - 1}`}
+            {chapterNumber > 1 ? (
+              <button
+                type="button"
+                onClick={() =>
+                  goToChapter(chapterNumber - 1)
+                }
               >
-                <ChevronLeft size={17} />
+                <ChevronLeft size={18} />
 
                 <span>
                   <small>上一章</small>
-                  第 {safeChapter - 1} 章
+                  第 {chapterNumber - 1} 章
                 </span>
-              </Link>
+              </button>
             ) : (
               <span />
             )}
 
-            <Link
-              className="reader-back-link"
-              to="/bible"
-            >
-              返回书卷目录
+            <Link className="reader-back-link" to="/bible">
+              <ArrowLeft size={15} />
+              返回目录
             </Link>
 
-            {hasNext ? (
-              <Link
+            {chapterNumber < book.chapter_count ? (
+              <button
+                type="button"
                 className="reader-next-link"
-                to={`/bible/${encodeURIComponent(
-                  bookData.name_en,
-                )}/${safeChapter + 1}`}
+                onClick={() =>
+                  goToChapter(chapterNumber + 1)
+                }
               >
                 <span>
                   <small>下一章</small>
-                  第 {safeChapter + 1} 章
+                  第 {chapterNumber + 1} 章
                 </span>
 
-                <ChevronRight size={17} />
-              </Link>
+                <ChevronRight size={18} />
+              </button>
             ) : (
               <span />
             )}
@@ -394,31 +382,36 @@ export default function ChapterPage() {
         <aside className="reader-sidebar">
           <div className="reader-sidebar-heading">
             <span>CHAPTERS</span>
-            <strong>章节目录</strong>
+            <strong>{book.name_zh}</strong>
           </div>
 
           <div className="reader-chapter-grid">
             {Array.from(
-              { length: bookData.chapter_count },
+              { length: book.chapter_count },
               (_, index) => index + 1,
-            ).map((chapterNumber) => (
-              <Link
-                key={chapterNumber}
-                className={
-                  chapterNumber === safeChapter
-                    ? 'active'
-                    : ''
-                }
-                to={`/bible/${encodeURIComponent(
-                  bookData.name_en,
-                )}/${chapterNumber}`}
-              >
-                {chapterNumber}
-              </Link>
-            ))}
+            ).map((chapter) => {
+              const routeBookKey =
+                book.name_en ??
+                book.abbreviation ??
+                String(book.id)
+
+              return (
+                <Link
+                  className={
+                    chapter === chapterNumber ? 'active' : ''
+                  }
+                  key={chapter}
+                  to={`/bible/${encodeURIComponent(
+                    routeBookKey,
+                  )}/${chapter}`}
+                >
+                  {chapter}
+                </Link>
+              )
+            })}
           </div>
         </aside>
       </div>
-    </section>
+    </main>
   )
 }
