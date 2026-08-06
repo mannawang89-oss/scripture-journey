@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -32,65 +33,6 @@ type BibleVerse = {
   paragraph_start: boolean | null
 }
 
-type BibleChapterStudy = {
-  id: number
-  overview: string | null
-  historical_background: string | null
-  structure: string | null
-  themes: string | null
-}
-
-type StudyTab =
-  | 'overview'
-  | 'historical_background'
-  | 'structure'
-  | 'themes'
-
-const studyTabs: Array<{
-  id: StudyTab
-  label: string
-  eyebrow: string
-  title: string
-}> = [
-  {
-    id: 'overview',
-    label: '章节概览',
-    eyebrow: 'OVERVIEW',
-    title: '章节概览',
-  },
-  {
-    id: 'historical_background',
-    label: '历史背景',
-    eyebrow: 'HISTORICAL BACKGROUND',
-    title: '历史背景',
-  },
-  {
-    id: 'structure',
-    label: '文学结构',
-    eyebrow: 'LITERARY STRUCTURE',
-    title: '文学结构',
-  },
-  {
-    id: 'themes',
-    label: '神学主题',
-    eyebrow: 'THEOLOGICAL THEMES',
-    title: '神学主题',
-  },
-]
-
-function renderStudyText(content: string | null) {
-  if (!content) {
-    return <p>本栏目内容尚未整理。</p>
-  }
-
-  return content
-    .split(/\n+/)
-    .filter(Boolean)
-    .map((paragraph, index) => (
-      <p key={`${paragraph}-${index}`}>{paragraph}</p>
-    ))
-}
-
 export default function ChapterPage() {
   const params = useParams()
   const navigate = useNavigate()
@@ -116,16 +58,12 @@ export default function ChapterPage() {
   >([])
   const [translationId, setTranslationId] = useState(1)
   const [verses, setVerses] = useState<BibleVerse[]>([])
-  const [study, setStudy] = useState<BibleChapterStudy | null>(null)
-  const [activeStudyTab, setActiveStudyTab] =
-    useState<StudyTab>('overview')
-  const [loadingBook, setLoadingBook] = useState(true)
-  const [loadingContent, setLoadingContent] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
     async function loadBookAndTranslations() {
-      setLoadingBook(true)
+      setLoading(true)
       setErrorMessage('')
 
       const decodedBookKey = decodeURIComponent(bookKey)
@@ -148,7 +86,7 @@ export default function ChapterPage() {
         console.error(bookError)
         setErrorMessage('没有找到这卷圣经。')
         setBook(null)
-        setLoadingBook(false)
+        setLoading(false)
         return
       }
 
@@ -166,79 +104,47 @@ export default function ChapterPage() {
         setErrorMessage('译本资料读取失败。')
         setTranslations([])
       } else {
-        const loadedTranslations =
-          (translationData ?? []) as BibleTranslation[]
-
-        setTranslations(loadedTranslations)
-
-        if (
-          loadedTranslations.length > 0 &&
-          !loadedTranslations.some(
-            (translation) => translation.id === translationId,
-          )
-        ) {
-          setTranslationId(loadedTranslations[0].id)
-        }
+        setTranslations(
+          (translationData ?? []) as BibleTranslation[],
+        )
       }
 
       setBook(bookData as BibleBook)
-      setLoadingBook(false)
+      setLoading(false)
     }
 
     loadBookAndTranslations()
   }, [bookKey])
 
   useEffect(() => {
-    async function loadChapterContent() {
+    async function loadVerses() {
       if (!book) return
 
-      setLoadingContent(true)
+      setLoading(true)
       setErrorMessage('')
 
-      const [
-        { data: verseData, error: verseError },
-        { data: studyData, error: studyError },
-      ] = await Promise.all([
-        supabase
-          .from('bible_verses')
-          .select(
-            'id, verse_number, verse_text, paragraph_start',
-          )
-          .eq('translation_id', translationId)
-          .eq('book_id', book.id)
-          .eq('chapter_number', chapterNumber)
-          .order('verse_number', { ascending: true }),
+      const { data, error } = await supabase
+        .from('bible_verses')
+        .select(
+          'id, verse_number, verse_text, paragraph_start',
+        )
+        .eq('translation_id', translationId)
+        .eq('book_id', book.id)
+        .eq('chapter_number', chapterNumber)
+        .order('verse_number', { ascending: true })
 
-        supabase
-          .from('bible_chapter_studies')
-          .select(
-            'id, overview, historical_background, structure, themes',
-          )
-          .eq('translation_id', translationId)
-          .eq('book_id', book.id)
-          .eq('chapter_number', chapterNumber)
-          .maybeSingle(),
-      ])
-
-      if (verseError) {
-        console.error(verseError)
+      if (error) {
+        console.error(error)
         setErrorMessage('经文读取失败，请稍后刷新页面。')
         setVerses([])
       } else {
-        setVerses((verseData ?? []) as BibleVerse[])
+        setVerses((data ?? []) as BibleVerse[])
       }
 
-      if (studyError) {
-        console.error(studyError)
-        setStudy(null)
-      } else {
-        setStudy((studyData as BibleChapterStudy | null) ?? null)
-      }
-
-      setLoadingContent(false)
+      setLoading(false)
     }
 
-    loadChapterContent()
+    loadVerses()
   }, [book, chapterNumber, translationId])
 
   const currentTranslation = useMemo(
@@ -248,14 +154,6 @@ export default function ChapterPage() {
       ),
     [translationId, translations],
   )
-
-  const activeStudyConfig = studyTabs.find(
-    (tab) => tab.id === activeStudyTab,
-  )!
-
-  const activeStudyContent = study
-    ? study[activeStudyTab]
-    : null
 
   function goToChapter(nextChapter: number) {
     if (!book) return
@@ -268,7 +166,7 @@ export default function ChapterPage() {
     )
   }
 
-  if (loadingBook && !book) {
+  if (loading && !book) {
     return (
       <main className="reader-status-page">
         <div className="container">
@@ -378,18 +276,24 @@ export default function ChapterPage() {
               {book.name_zh} {chapterNumber}
             </h1>
 
-            <p className="reader-book-en">{book.name_en}</p>
+            <p className="reader-book-en">
+              {book.name_en}
+            </p>
 
             <div className="reader-chapter-line">
-              <span>第 {chapterNumber} 章</span>
+              <span>
+                第 {chapterNumber} 章
+              </span>
+
               <i />
+
               <span>
                 {currentTranslation?.name_zh ?? '和合本'}
               </span>
             </div>
           </header>
 
-          {loadingContent ? (
+          {loading ? (
             <section className="scripture-reading">
               <p>正在读取经文……</p>
             </section>
@@ -429,41 +333,6 @@ export default function ChapterPage() {
               ))}
             </section>
           )}
-
-          <section className="reader-study-panel">
-            <div className="reader-study-tabs">
-              {studyTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={
-                    activeStudyTab === tab.id ? 'active' : ''
-                  }
-                  onClick={() => setActiveStudyTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="reader-study-content">
-              <div className="reader-study-symbol">
-                <BookOpen size={21} />
-              </div>
-
-              <div>
-                <p className="reader-placeholder-label">
-                  {activeStudyConfig.eyebrow}
-                </p>
-
-                <h3>{activeStudyConfig.title}</h3>
-
-                <div className="reader-study-copy">
-                  {renderStudyText(activeStudyContent)}
-                </div>
-              </div>
-            </div>
-          </section>
 
           <nav className="reader-bottom-nav">
             {chapterNumber > 1 ? (
