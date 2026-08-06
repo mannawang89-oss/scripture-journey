@@ -1,8 +1,7 @@
-import { ArrowRight, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import SectionHeading from '../components/SectionHeading'
 import { supabase } from '../lib/supabase'
 import './BibleBooksPage.css'
 
@@ -16,12 +15,79 @@ type BibleBook = {
   chapter_count: number
 }
 
+type BookGroup = {
+  title: string
+  subtitle: string
+  books: BibleBook[]
+}
+
+const oldTestamentGroups = [
+  { title: '律法书', subtitle: 'THE PENTATEUCH', range: [1, 5] },
+  { title: '历史书', subtitle: 'HISTORICAL BOOKS', range: [6, 17] },
+  { title: '诗歌智慧书', subtitle: 'POETRY & WISDOM', range: [18, 22] },
+  { title: '大先知书', subtitle: 'MAJOR PROPHETS', range: [23, 27] },
+  { title: '小先知书', subtitle: 'MINOR PROPHETS', range: [28, 39] },
+]
+
+const newTestamentGroups = [
+  { title: '四福音', subtitle: 'THE GOSPELS', range: [40, 43] },
+  { title: '教会历史', subtitle: 'CHURCH HISTORY', range: [44, 44] },
+  { title: '保罗书信', subtitle: 'PAULINE EPISTLES', range: [45, 57] },
+  { title: '普通书信', subtitle: 'GENERAL EPISTLES', range: [58, 65] },
+  { title: '启示文学', subtitle: 'APOCALYPSE', range: [66, 66] },
+]
+
+function toRomanNumeral(value: number) {
+  const numerals: Array<[number, string]> = [
+    [50, 'L'],
+    [40, 'XL'],
+    [10, 'X'],
+    [9, 'IX'],
+    [5, 'V'],
+    [4, 'IV'],
+    [1, 'I'],
+  ]
+
+  let current = value
+  let result = ''
+
+  numerals.forEach(([number, numeral]) => {
+    while (current >= number) {
+      result += numeral
+      current -= number
+    }
+  })
+
+  return result
+}
+
+function groupBooks(
+  books: BibleBook[],
+  definitions: Array<{
+    title: string
+    subtitle: string
+    range: number[]
+  }>,
+): BookGroup[] {
+  return definitions
+    .map((definition) => ({
+      title: definition.title,
+      subtitle: definition.subtitle,
+      books: books.filter(
+        (book) =>
+          book.book_order >= definition.range[0] &&
+          book.book_order <= definition.range[1],
+      ),
+    }))
+    .filter((group) => group.books.length > 0)
+}
+
 export default function BibleBooksPage() {
   const [books, setBooks] = useState<BibleBook[]>([])
+  const [query, setQuery] = useState('')
   const [testament, setTestament] = useState<'all' | 'old' | 'new'>(
     'all',
   )
-  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -39,8 +105,8 @@ export default function BibleBooksPage() {
 
       if (error) {
         console.error(error)
-        setErrorMessage('书卷读取失败，请稍后刷新页面。')
         setBooks([])
+        setErrorMessage('圣经书卷读取失败，请稍后刷新页面。')
       } else {
         setBooks((data ?? []) as BibleBook[])
       }
@@ -55,153 +121,175 @@ export default function BibleBooksPage() {
     const normalized = query.trim().toLowerCase()
 
     return books.filter((book) => {
-      const matchesTestament =
+      const testamentMatches =
         testament === 'all' || book.testament === testament
 
-      const matchesQuery =
+      const queryMatches =
         !normalized ||
-        book.name_zh.includes(normalized) ||
-        (book.name_en ?? '').toLowerCase().includes(normalized) ||
-        (book.abbreviation ?? '').toLowerCase().includes(normalized)
+        [book.name_zh, book.name_en, book.abbreviation]
+          .filter(Boolean)
+          .some((value) =>
+            String(value).toLowerCase().includes(normalized),
+          )
 
-      return matchesTestament && matchesQuery
+      return testamentMatches && queryMatches
     })
   }, [books, query, testament])
 
-  const oldTestamentBooks = filteredBooks.filter(
+  const oldBooks = filteredBooks.filter(
     (book) => book.testament === 'old',
   )
 
-  const newTestamentBooks = filteredBooks.filter(
+  const newBooks = filteredBooks.filter(
     (book) => book.testament === 'new',
   )
 
-  function renderBookDirectory(
-    titleZh: string,
-    titleEn: string,
-    sectionBooks: BibleBook[],
-  ) {
-    if (sectionBooks.length === 0) return null
-
-    return (
-      <section className="bible-directory-section">
-        <header className="bible-directory-section-heading">
-          <div>
-            <p>{titleEn}</p>
-            <h2>{titleZh}</h2>
-          </div>
-
-          <span>{sectionBooks.length} 卷</span>
-        </header>
-
-        <div className="bible-directory-list">
-          {sectionBooks.map((book) => (
-            <Link
-              className="bible-directory-row"
-              key={book.id}
-              to={`/bible/${encodeURIComponent(
-                book.name_en ??
-                  book.abbreviation ??
-                  String(book.id),
-              )}/1`}
-            >
-              <span className="bible-directory-number">
-                {String(book.book_order).padStart(2, '0')}
-              </span>
-
-              <span className="bible-directory-name">
-                <strong>{book.name_zh}</strong>
-                <small>{book.name_en ?? book.abbreviation}</small>
-              </span>
-
-              <span className="bible-directory-dots" />
-
-              <span className="bible-directory-chapters">
-                {book.chapter_count} 章
-              </span>
-
-              <span className="bible-directory-arrow">
-                <ArrowRight size={17} />
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-    )
-  }
+  const oldGroups = groupBooks(oldBooks, oldTestamentGroups)
+  const newGroups = groupBooks(newBooks, newTestamentGroups)
 
   return (
-    <section className="page-section bible-directory-page">
-      <div className="container">
-        <div className="bible-directory-header">
-          <SectionHeading eyebrow="66 BOOKS" title="圣经目录" />
+    <main className="bible-library-page">
+      <section className="bible-library-hero">
+        <div className="bible-library-shell">
+          <p className="bible-library-kicker">SCRIPTURE</p>
+          <h1>浏览圣经</h1>
+          <p className="bible-library-intro">
+            从创世记到启示录，按书卷进入经文。
+          </p>
+        </div>
+      </section>
 
-          <label className="bible-directory-search">
-            <Search size={17} />
-
+      <section className="bible-library-controls">
+        <div className="bible-library-shell bible-library-controls-inner">
+          <label className="bible-library-search">
+            <Search size={18} />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索书卷"
             />
           </label>
-        </div>
 
-        <div className="bible-directory-filter">
-          {[
-            ['all', '全部'],
-            ['old', '旧约'],
-            ['new', '新约'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={testament === value ? 'active' : ''}
-              onClick={() =>
-                setTestament(value as 'all' | 'old' | 'new')
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {loading && (
-          <div className="bible-directory-status">
-            正在读取 66 卷圣经……
+          <div className="bible-library-tabs">
+            {[
+              ['all', '全部'],
+              ['old', '旧约'],
+              ['new', '新约'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={testament === value ? 'active' : ''}
+                onClick={() =>
+                  setTestament(value as 'all' | 'old' | 'new')
+                }
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
+      </section>
 
-        {!loading && errorMessage && (
-          <div className="bible-directory-status">
-            {errorMessage}
-          </div>
-        )}
-
-        {!loading &&
-          !errorMessage &&
-          filteredBooks.length === 0 && (
-            <div className="bible-directory-status">
-              没有找到对应书卷。
+      <section className="bible-library-content">
+        <div className="bible-library-shell">
+          {loading ? (
+            <div className="bible-library-status">
+              正在读取圣经书卷……
             </div>
+          ) : errorMessage ? (
+            <div className="bible-library-status">
+              {errorMessage}
+            </div>
+          ) : filteredBooks.length === 0 ? (
+            <div className="bible-library-status">
+              没有找到符合条件的书卷。
+            </div>
+          ) : (
+            <>
+              {testament !== 'new' && oldGroups.length > 0 && (
+                <TestamentSection
+                  eyebrow="OLD TESTAMENT"
+                  title="旧约"
+                  description="律法、历史、诗歌与先知。"
+                  groups={oldGroups}
+                />
+              )}
+
+              {testament !== 'old' && newGroups.length > 0 && (
+                <TestamentSection
+                  eyebrow="NEW TESTAMENT"
+                  title="新约"
+                  description="福音、教会、书信与启示。"
+                  groups={newGroups}
+                />
+              )}
+            </>
           )}
+        </div>
+      </section>
+    </main>
+  )
+}
 
-        {!loading && !errorMessage && filteredBooks.length > 0 && (
-          <div className="bible-directory-content">
-            {renderBookDirectory(
-              '旧约',
-              'OLD TESTAMENT',
-              oldTestamentBooks,
-            )}
+function TestamentSection({
+  eyebrow,
+  title,
+  description,
+  groups,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  groups: BookGroup[]
+}) {
+  return (
+    <section className="testament-section">
+      <header className="testament-heading">
+        <p>{eyebrow}</p>
+        <h2>{title}</h2>
+        <span>{description}</span>
+      </header>
 
-            {renderBookDirectory(
-              '新约',
-              'NEW TESTAMENT',
-              newTestamentBooks,
-            )}
+      {groups.map((group) => (
+        <section className="book-group" key={group.title}>
+          <header className="book-group-heading">
+            <div>
+              <p>{group.subtitle}</p>
+              <h3>{group.title}</h3>
+            </div>
+            <span>{group.books.length} 卷</span>
+          </header>
+
+          <div className="book-library-grid">
+            {group.books.map((book) => {
+              const routeBookKey =
+                book.name_en ?? book.abbreviation ?? String(book.id)
+
+              return (
+                <Link
+                  className="book-library-card"
+                  key={book.id}
+                  to={`/bible/${encodeURIComponent(routeBookKey)}/1`}
+                >
+                  <span className="book-library-number">
+                    {toRomanNumeral(book.book_order)}
+                  </span>
+
+                  <div className="book-library-copy">
+                    <p>{book.name_en ?? book.abbreviation ?? ''}</p>
+                    <h4>{book.name_zh}</h4>
+                  </div>
+
+                  <span className="book-library-chapters">
+                    {book.chapter_count} 章
+                  </span>
+                </Link>
+              )
+            })}
           </div>
-        )}
-      </div>
+        </section>
+      ))}
     </section>
   )
 }
