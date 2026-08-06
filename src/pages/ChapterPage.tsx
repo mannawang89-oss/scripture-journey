@@ -1,14 +1,19 @@
 import {
-  ArrowLeft,
   BookOpen,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  Landmark,
+  Layers3,
+  Search,
+  Sparkles,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import AITranslationCard from '../components/AITranslationCard'
 import { supabase } from '../lib/supabase'
+import './ChapterPage.css'
 
 type BibleBook = {
   id: number
@@ -41,55 +46,112 @@ type BibleChapterStudy = {
   themes: string | null
 }
 
-type StudyTab =
-  | 'overview'
-  | 'historical_background'
-  | 'structure'
-  | 'themes'
+type RightPanelMode =
+  | 'ai_literal'
+  | 'ai_natural'
+  | 'ai_hebrew'
+  | 'ai_first_reader'
+  | 'study_overview'
+  | 'study_structure'
+  | 'study_history'
+  | 'study_themes'
 
-const studyTabs: Array<{
-  id: StudyTab
+const VERSES_PER_PAGE = 10
+
+const aiModes: Array<{
+  id: RightPanelMode
   label: string
-  eyebrow: string
-  title: string
+}> = [
+  { id: 'ai_literal', label: '直译' },
+  { id: 'ai_natural', label: '意译' },
+  { id: 'ai_hebrew', label: '希伯来表达' },
+  { id: 'ai_first_reader', label: '第一读者理解' },
+]
+
+const studyModes: Array<{
+  id: RightPanelMode
+  label: string
+  icon: typeof BookOpen
 }> = [
   {
-    id: 'overview',
+    id: 'study_overview',
     label: '章节概览',
-    eyebrow: 'OVERVIEW',
-    title: '章节概览',
+    icon: BookOpen,
   },
   {
-    id: 'historical_background',
-    label: '历史背景',
-    eyebrow: 'HISTORICAL BACKGROUND',
-    title: '历史背景',
-  },
-  {
-    id: 'structure',
+    id: 'study_structure',
     label: '文学结构',
-    eyebrow: 'LITERARY STRUCTURE',
-    title: '文学结构',
+    icon: Layers3,
   },
   {
-    id: 'themes',
+    id: 'study_history',
+    label: '历史背景',
+    icon: Landmark,
+  },
+  {
+    id: 'study_themes',
     label: '神学主题',
-    eyebrow: 'THEOLOGICAL THEMES',
-    title: '神学主题',
+    icon: Sparkles,
   },
 ]
 
-function renderStudyText(content: string | null) {
-  if (!content) {
-    return <p>本栏目内容尚未整理。</p>
+function getStudyContent(
+  study: BibleChapterStudy | null,
+  mode: RightPanelMode,
+) {
+  if (!study) return null
+
+  switch (mode) {
+    case 'study_overview':
+      return study.overview
+    case 'study_structure':
+      return study.structure
+    case 'study_history':
+      return study.historical_background
+    case 'study_themes':
+      return study.themes
+    default:
+      return null
+  }
+}
+
+function getPanelTitle(mode: RightPanelMode) {
+  const aiMode = aiModes.find((item) => item.id === mode)
+  if (aiMode) return `AI译文（${aiMode.label}）`
+
+  return studyModes.find((item) => item.id === mode)?.label ?? '研读工具'
+}
+
+function getFallbackTranslation(
+  mode: RightPanelMode,
+  verseNumber: number,
+  sourceText: string,
+) {
+  if (mode === 'ai_literal') {
+    if (verseNumber === 1) return '起初，上帝创造了天地。'
+    return sourceText
   }
 
-  return content
-    .split(/\n+/)
-    .filter(Boolean)
-    .map((paragraph, index) => (
-      <p key={`${paragraph}-${index}`}>{paragraph}</p>
-    ))
+  if (mode === 'ai_natural') {
+    if (verseNumber === 1) return '在一切开始的时候，上帝创造了整个宇宙。'
+    return `第${verseNumber}节的意译内容尚未生成。`
+  }
+
+  if (mode === 'ai_hebrew') {
+    if (verseNumber === 1) {
+      return '“天地”是希伯来人的整体表达，指向整个受造界。'
+    }
+    return `第${verseNumber}节的希伯来表达说明尚未生成。`
+  }
+
+  if (mode === 'ai_first_reader') {
+    if (verseNumber === 1) {
+      return '对刚离开埃及的以色列人而言，这节经文宣告：万物都不是神，耶和华才是创造一切的主。'
+    }
+    return `第${verseNumber}节的第一读者理解尚未生成。`
+  }
+
+  return sourceText
 }
 
 export default function ChapterPage() {
@@ -118,11 +180,17 @@ export default function ChapterPage() {
   const [translationId, setTranslationId] = useState(1)
   const [verses, setVerses] = useState<BibleVerse[]>([])
   const [study, setStudy] = useState<BibleChapterStudy | null>(null)
-  const [activeStudyTab, setActiveStudyTab] =
-    useState<StudyTab>('overview')
+  const [versePage, setVersePage] = useState(1)
+  const [rightPanelMode, setRightPanelMode] =
+    useState<RightPanelMode>('ai_literal')
+  const [aiMenuOpen, setAiMenuOpen] = useState(false)
+  const [studyMenuOpen, setStudyMenuOpen] = useState(false)
   const [loadingBook, setLoadingBook] = useState(true)
   const [loadingContent, setLoadingContent] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+
+  const aiMenuRef = useRef<HTMLDivElement | null>(null)
+  const studyMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     async function loadBookAndTranslations() {
@@ -164,12 +232,10 @@ export default function ChapterPage() {
 
       if (translationError) {
         console.error(translationError)
-        setErrorMessage('译本资料读取失败。')
         setTranslations([])
       } else {
         const loadedTranslations =
           (translationData ?? []) as BibleTranslation[]
-
         setTranslations(loadedTranslations)
 
         if (
@@ -195,6 +261,7 @@ export default function ChapterPage() {
 
       setLoadingContent(true)
       setErrorMessage('')
+      setVersePage(1)
 
       const [
         { data: verseData, error: verseError },
@@ -234,9 +301,9 @@ export default function ChapterPage() {
         console.error(studyError)
         setStudy(null)
       } else {
-        const firstStudy =
-          (studyData?.[0] as BibleChapterStudy | undefined) ?? null
-        setStudy(firstStudy)
+        setStudy(
+          (studyData?.[0] as BibleChapterStudy | undefined) ?? null,
+        )
       }
 
       setLoadingContent(false)
@@ -244,6 +311,32 @@ export default function ChapterPage() {
 
     loadChapterContent()
   }, [book, chapterNumber, translationId])
+
+  useEffect(() => {
+    function closeMenus(event: MouseEvent) {
+      const target = event.target as Node
+
+      if (
+        aiMenuRef.current &&
+        !aiMenuRef.current.contains(target)
+      ) {
+        setAiMenuOpen(false)
+      }
+
+      if (
+        studyMenuRef.current &&
+        !studyMenuRef.current.contains(target)
+      ) {
+        setStudyMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', closeMenus)
+
+    return () => {
+      document.removeEventListener('mousedown', closeMenus)
+    }
+  }, [])
 
   const currentTranslation = useMemo(
     () =>
@@ -253,15 +346,18 @@ export default function ChapterPage() {
     [translationId, translations],
   )
 
-  const activeStudyConfig = studyTabs.find(
-    (tab) => tab.id === activeStudyTab,
-  )!
+  const versePageCount = Math.max(
+    1,
+    Math.ceil(verses.length / VERSES_PER_PAGE),
+  )
 
-  const activeStudyContent = study
-    ? study[activeStudyTab]
-    : null
+  const currentVerses = useMemo(() => {
+    const start = (versePage - 1) * VERSES_PER_PAGE
+    return verses.slice(start, start + VERSES_PER_PAGE)
+  }, [versePage, verses])
 
-  const firstVerse = verses[0]
+  const isAiMode = rightPanelMode.startsWith('ai_')
+  const studyContent = getStudyContent(study, rightPanelMode)
 
   function goToChapter(nextChapter: number) {
     if (!book) return
@@ -274,34 +370,57 @@ export default function ChapterPage() {
     )
   }
 
+  function goToVersePage(nextPage: number) {
+    if (nextPage < 1 || nextPage > versePageCount) return
+    setVersePage(nextPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function copyRightPanel() {
+    const copyText = isAiMode
+      ? currentVerses
+          .map(
+            (verse) =>
+              `${verse.verse_number} ${getFallbackTranslation(
+                rightPanelMode,
+                verse.verse_number,
+                verse.verse_text,
+              )}`,
+          )
+          .join('\n')
+      : studyContent ?? ''
+
+    if (!copyText) return
+
+    try {
+      await navigator.clipboard.writeText(copyText)
+    } catch (error) {
+      console.error('复制失败', error)
+    }
+  }
+
   if (loadingBook && !book) {
     return (
-      <main className="reader-status-page">
-        <div className="container">
-          <p>正在读取圣经内容……</p>
-        </div>
+      <main className="chapter-v1-status">
+        <p>正在读取圣经内容……</p>
       </main>
     )
   }
 
-  if (errorMessage && !book) {
+  if (!book) {
     return (
-      <main className="reader-status-page reader-error">
-        <div className="container">
-          <p>{errorMessage}</p>
-          <Link to="/bible">返回圣经目录</Link>
-        </div>
+      <main className="chapter-v1-status">
+        <p>{errorMessage || '没有找到这卷圣经。'}</p>
+        <Link to="/bible">返回圣经目录</Link>
       </main>
     )
   }
-
-  if (!book) return null
 
   return (
-    <main className="reader-page">
-      <div className="reader-topbar">
-        <div className="container reader-topbar-inner">
-          <div className="reader-selects">
+    <main className="chapter-v1-page">
+      <section className="chapter-v1-toolbar">
+        <div className="chapter-v1-toolbar-inner">
+          <div className="chapter-v1-select-group">
             <label>
               <span>书卷</span>
               <select
@@ -361,196 +480,204 @@ export default function ChapterPage() {
             </label>
           </div>
 
-          <div className="reader-tools">
-            <Link to="/bible">
-              <BookOpen size={17} />
-              <span>圣经目录</span>
-            </Link>
+          <div className="chapter-v1-toolbar-actions">
+            <button type="button" aria-label="搜索">
+              <Search size={18} />
+            </button>
+
+            <div
+              className="chapter-v1-study-menu"
+              ref={studyMenuRef}
+            >
+              <button
+                type="button"
+                className="chapter-v1-study-trigger"
+                onClick={() =>
+                  setStudyMenuOpen((current) => !current)
+                }
+              >
+                研读工具
+                <ChevronDown
+                  size={16}
+                  className={studyMenuOpen ? 'is-open' : ''}
+                />
+              </button>
+
+              {studyMenuOpen && (
+                <div className="chapter-v1-dropdown chapter-v1-study-dropdown">
+                  {studyModes.map((item) => {
+                    const Icon = item.icon
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={
+                          rightPanelMode === item.id ? 'active' : ''
+                        }
+                        onClick={() => {
+                          setRightPanelMode(item.id)
+                          setStudyMenuOpen(false)
+                        }}
+                      >
+                        <Icon size={17} />
+                        <span>{item.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="container reader-shell">
-        <article className="reader-main">
-          <header className="reader-header">
-            <p className="reader-kicker">
-              {currentTranslation?.code ?? 'BIBLE'}
-            </p>
-
-            <h1>
-              {book.name_zh} {chapterNumber}
-            </h1>
-
-            <p className="reader-book-en">{book.name_en}</p>
-
-            <div className="reader-chapter-line">
-              <span>第 {chapterNumber} 章</span>
-              <i />
-              <span>
-                {currentTranslation?.name_zh ?? '和合本'}
-              </span>
-            </div>
+      <section className="chapter-v1-layout">
+        <article className="chapter-v1-panel chapter-v1-scripture-panel">
+          <header className="chapter-v1-panel-header">
+            <span>
+              第 {versePage} 页 / 共 {versePageCount} 页
+            </span>
+            <small>
+              {book.name_zh} {chapterNumber} ·{' '}
+              {currentTranslation?.name_zh ?? ''}
+            </small>
           </header>
 
-          {loadingContent ? (
-            <section className="scripture-reading">
-              <p>正在读取经文……</p>
-            </section>
-          ) : errorMessage ? (
-            <section className="scripture-reading">
-              <p>{errorMessage}</p>
-            </section>
-          ) : verses.length === 0 ? (
-            <section className="reader-scripture-placeholder">
-              <div className="reader-placeholder-icon">
-                <BookOpen size={22} />
-              </div>
-
-              <div>
-                <p className="reader-placeholder-label">
-                  SCRIPTURE
-                </p>
-                <h2>本章经文尚未导入</h2>
-                <p>
-                  当前译本的这一章还没有经文内容，请先在
-                  Supabase 中完成导入。
-                </p>
-              </div>
-            </section>
-          ) : (
-            <>
-              <section className="scripture-reading">
-                {verses.map((verse) => (
-                  <p
-                    className="scripture-verse"
-                    key={verse.id}
-                  >
-                    <sup>{verse.verse_number}</sup>
-                    {verse.verse_text}
-                  </p>
-                ))}
-              </section>
-
-              {book.id === 1 &&
-                chapterNumber === 1 &&
-                firstVerse && (
-                  <AITranslationCard
-                    reference={`${book.name_zh} ${chapterNumber}:${firstVerse.verse_number}`}
-                  />
-                )}
-            </>
-          )}
-
-          <section className="reader-study-panel">
-            <div className="reader-study-tabs">
-              {studyTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={
-                    activeStudyTab === tab.id ? 'active' : ''
-                  }
-                  onClick={() => setActiveStudyTab(tab.id)}
+          <div className="chapter-v1-panel-body">
+            {loadingContent ? (
+              <p className="chapter-v1-empty">正在读取经文……</p>
+            ) : errorMessage ? (
+              <p className="chapter-v1-empty">{errorMessage}</p>
+            ) : currentVerses.length === 0 ? (
+              <p className="chapter-v1-empty">
+                当前页面还没有经文内容。
+              </p>
+            ) : (
+              currentVerses.map((verse) => (
+                <p
+                  className="chapter-v1-verse"
+                  key={verse.id}
                 >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="reader-study-content">
-              <div className="reader-study-symbol">
-                <BookOpen size={21} />
-              </div>
-
-              <div>
-                <p className="reader-placeholder-label">
-                  {activeStudyConfig.eyebrow}
+                  <sup>{verse.verse_number}</sup>
+                  <span>{verse.verse_text}</span>
                 </p>
-                <h3>{activeStudyConfig.title}</h3>
-
-                <div className="reader-study-copy">
-                  {renderStudyText(activeStudyContent)}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <nav className="reader-bottom-nav">
-            {chapterNumber > 1 ? (
-              <button
-                type="button"
-                onClick={() =>
-                  goToChapter(chapterNumber - 1)
-                }
-              >
-                <ChevronLeft size={18} />
-                <span>
-                  <small>上一章</small>
-                  第 {chapterNumber - 1} 章
-                </span>
-              </button>
-            ) : (
-              <span />
+              ))
             )}
+          </div>
 
-            <Link className="reader-back-link" to="/bible">
-              <ArrowLeft size={15} />
-              返回目录
-            </Link>
+          <footer className="chapter-v1-pagination">
+            <button
+              type="button"
+              disabled={versePage === 1}
+              onClick={() => goToVersePage(versePage - 1)}
+            >
+              <ChevronLeft size={17} />
+              上一页
+            </button>
 
-            {chapterNumber < book.chapter_count ? (
-              <button
-                type="button"
-                className="reader-next-link"
-                onClick={() =>
-                  goToChapter(chapterNumber + 1)
-                }
-              >
-                <span>
-                  <small>下一章</small>
-                  第 {chapterNumber + 1} 章
-                </span>
-                <ChevronRight size={18} />
-              </button>
-            ) : (
-              <span />
-            )}
-          </nav>
+            <span>
+              第 {versePage} 页 / 共 {versePageCount} 页
+            </span>
+
+            <button
+              type="button"
+              disabled={versePage === versePageCount}
+              onClick={() => goToVersePage(versePage + 1)}
+            >
+              下一页
+              <ChevronRight size={17} />
+            </button>
+          </footer>
         </article>
 
-        <aside className="reader-sidebar">
-          <div className="reader-sidebar-heading">
-            <span>CHAPTERS</span>
-            <strong>{book.name_zh}</strong>
-          </div>
+        <article className="chapter-v1-panel chapter-v1-right-panel">
+          <header className="chapter-v1-panel-header">
+            <div className="chapter-v1-ai-menu" ref={aiMenuRef}>
+              <button
+                type="button"
+                className="chapter-v1-ai-trigger"
+                onClick={() =>
+                  setAiMenuOpen((current) => !current)
+                }
+              >
+                {getPanelTitle(rightPanelMode)}
+                {isAiMode && (
+                  <ChevronDown
+                    size={16}
+                    className={aiMenuOpen ? 'is-open' : ''}
+                  />
+                )}
+              </button>
 
-          <div className="reader-chapter-grid">
-            {Array.from(
-              { length: book.chapter_count },
-              (_, index) => index + 1,
-            ).map((chapter) => {
-              const routeBookKey =
-                book.name_en ??
-                book.abbreviation ??
-                String(book.id)
+              {isAiMode && aiMenuOpen && (
+                <div className="chapter-v1-dropdown chapter-v1-ai-dropdown">
+                  {aiModes.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={
+                        rightPanelMode === item.id ? 'active' : ''
+                      }
+                      onClick={() => {
+                        setRightPanelMode(item.id)
+                        setAiMenuOpen(false)
+                      }}
+                    >
+                      <span>{item.label}</span>
+                      {rightPanelMode === item.id && <strong>✓</strong>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-              return (
-                <Link
-                  className={
-                    chapter === chapterNumber ? 'active' : ''
-                  }
-                  key={chapter}
-                  to={`/bible/${encodeURIComponent(
-                    routeBookKey,
-                  )}/${chapter}`}
+            <button
+              type="button"
+              className="chapter-v1-copy-button"
+              onClick={copyRightPanel}
+              aria-label="复制当前内容"
+            >
+              <Copy size={17} />
+            </button>
+          </header>
+
+          <div className="chapter-v1-panel-body chapter-v1-right-body">
+            {isAiMode ? (
+              currentVerses.map((verse) => (
+                <p
+                  className="chapter-v1-verse chapter-v1-ai-verse"
+                  key={`${rightPanelMode}-${verse.id}`}
                 >
-                  {chapter}
-                </Link>
-              )
-            })}
+                  <sup>{verse.verse_number}</sup>
+                  <span>
+                    {getFallbackTranslation(
+                      rightPanelMode,
+                      verse.verse_number,
+                      verse.verse_text,
+                    )}
+                  </span>
+                </p>
+              ))
+            ) : studyContent ? (
+              <div className="chapter-v1-study-content">
+                {studyContent
+                  .split(/\n+/)
+                  .filter(Boolean)
+                  .map((paragraph, index) => (
+                    <p key={`${rightPanelMode}-${index}`}>
+                      {paragraph}
+                    </p>
+                  ))}
+              </div>
+            ) : (
+              <p className="chapter-v1-empty">
+                本栏目内容尚未整理。
+              </p>
+            )}
           </div>
-        </aside>
-      </div>
+        </article>
+      </section>
     </main>
   )
 }
