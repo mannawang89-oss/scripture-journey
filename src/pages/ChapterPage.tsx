@@ -6,8 +6,11 @@ import {
   Copy,
   Landmark,
   Layers3,
-  Search,
+  Menu,
+  Moon,
   Sparkles,
+  Sun,
+  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -184,13 +187,62 @@ export default function ChapterPage() {
   const [rightPanelMode, setRightPanelMode] =
     useState<RightPanelMode>('ai_literal')
   const [aiMenuOpen, setAiMenuOpen] = useState(false)
-  const [studyMenuOpen, setStudyMenuOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [fontScale, setFontScale] = useState(1)
+  const [lineHeight, setLineHeight] = useState(1.9)
+  const [nightMode, setNightMode] = useState(false)
   const [loadingBook, setLoadingBook] = useState(true)
   const [loadingContent, setLoadingContent] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   const aiMenuRef = useRef<HTMLDivElement | null>(null)
-  const studyMenuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const savedTranslationId = Number(
+      window.localStorage.getItem('sj-translation-id'),
+    )
+    const savedFontScale = Number(
+      window.localStorage.getItem('sj-font-scale'),
+    )
+    const savedLineHeight = Number(
+      window.localStorage.getItem('sj-line-height'),
+    )
+    const savedNightMode =
+      window.localStorage.getItem('sj-night-mode') === 'true'
+
+    if (savedTranslationId) setTranslationId(savedTranslationId)
+    if (savedFontScale) setFontScale(savedFontScale)
+    if (savedLineHeight) setLineHeight(savedLineHeight)
+    setNightMode(savedNightMode)
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'sj-translation-id',
+      String(translationId),
+    )
+  }, [translationId])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'sj-font-scale',
+      String(fontScale),
+    )
+  }, [fontScale])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'sj-line-height',
+      String(lineHeight),
+    )
+  }, [lineHeight])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'sj-night-mode',
+      String(nightMode),
+    )
+  }, [nightMode])
 
   useEffect(() => {
     async function loadBookAndTranslations() {
@@ -313,30 +365,35 @@ export default function ChapterPage() {
   }, [book, chapterNumber, translationId])
 
   useEffect(() => {
-    function closeMenus(event: MouseEvent) {
-      const target = event.target as Node
-
+    function closeAiMenu(event: MouseEvent) {
       if (
         aiMenuRef.current &&
-        !aiMenuRef.current.contains(target)
+        !aiMenuRef.current.contains(event.target as Node)
       ) {
         setAiMenuOpen(false)
       }
-
-      if (
-        studyMenuRef.current &&
-        !studyMenuRef.current.contains(target)
-      ) {
-        setStudyMenuOpen(false)
-      }
     }
 
-    document.addEventListener('mousedown', closeMenus)
+    document.addEventListener('mousedown', closeAiMenu)
 
     return () => {
-      document.removeEventListener('mousedown', closeMenus)
+      document.removeEventListener('mousedown', closeAiMenu)
     }
   }, [])
+
+  useEffect(() => {
+    if (!settingsOpen) return
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setSettingsOpen(false)
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [settingsOpen])
 
   const currentTranslation = useMemo(
     () =>
@@ -401,7 +458,7 @@ export default function ChapterPage() {
 
   if (loadingBook && !book) {
     return (
-      <main className="chapter-v1-status">
+      <main className="chapter-reader-status">
         <p>正在读取圣经内容……</p>
       </main>
     )
@@ -409,7 +466,7 @@ export default function ChapterPage() {
 
   if (!book) {
     return (
-      <main className="chapter-v1-status">
+      <main className="chapter-reader-status">
         <p>{errorMessage || '没有找到这卷圣经。'}</p>
         <Link to="/bible">返回圣经目录</Link>
       </main>
@@ -417,148 +474,91 @@ export default function ChapterPage() {
   }
 
   return (
-    <main className="chapter-v1-page">
-      <section className="chapter-v1-toolbar">
-        <div className="chapter-v1-toolbar-inner">
-          <div className="chapter-v1-select-group">
-            <label>
-              <span>书卷</span>
-              <select
-                value={book.name_en ?? book.abbreviation ?? ''}
-                onChange={(event) =>
-                  navigate(
-                    `/bible/${encodeURIComponent(
-                      event.target.value,
-                    )}/1`,
-                  )
-                }
-              >
-                <option
-                  value={book.name_en ?? book.abbreviation ?? ''}
-                >
-                  {book.name_zh}
-                </option>
-              </select>
-            </label>
-
-            <label>
-              <span>章节</span>
-              <select
-                value={chapterNumber}
-                onChange={(event) =>
-                  goToChapter(Number(event.target.value))
-                }
-              >
-                {Array.from(
-                  { length: book.chapter_count },
-                  (_, index) => index + 1,
-                ).map((chapter) => (
-                  <option key={chapter} value={chapter}>
-                    第 {chapter} 章
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>译本</span>
-              <select
-                value={translationId}
-                onChange={(event) =>
-                  setTranslationId(Number(event.target.value))
-                }
-              >
-                {translations.map((translation) => (
-                  <option
-                    key={translation.id}
-                    value={translation.id}
-                  >
-                    {translation.name_zh}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="chapter-v1-toolbar-actions">
-            <button type="button" aria-label="搜索">
-              <Search size={18} />
-            </button>
-
-            <div
-              className="chapter-v1-study-menu"
-              ref={studyMenuRef}
+    <main
+      className={`chapter-reader-page ${
+        nightMode ? 'is-night' : ''
+      }`}
+      style={
+        {
+          '--reader-font-scale': fontScale,
+          '--reader-line-height': lineHeight,
+        } as React.CSSProperties
+      }
+    >
+      <section className="chapter-reader-toolbar">
+        <div className="chapter-reader-toolbar-inner">
+          <select
+            className="chapter-reader-book-select"
+            value={book.name_en ?? book.abbreviation ?? ''}
+            onChange={(event) =>
+              navigate(
+                `/bible/${encodeURIComponent(
+                  event.target.value,
+                )}/1`,
+              )
+            }
+            aria-label="选择书卷"
+          >
+            <option
+              value={book.name_en ?? book.abbreviation ?? ''}
             >
-              <button
-                type="button"
-                className="chapter-v1-study-trigger"
-                onClick={() =>
-                  setStudyMenuOpen((current) => !current)
-                }
-              >
-                研读工具
-                <ChevronDown
-                  size={16}
-                  className={studyMenuOpen ? 'is-open' : ''}
-                />
-              </button>
+              {book.name_zh}
+            </option>
+          </select>
 
-              {studyMenuOpen && (
-                <div className="chapter-v1-dropdown chapter-v1-study-dropdown">
-                  {studyModes.map((item) => {
-                    const Icon = item.icon
+          <select
+            className="chapter-reader-chapter-select"
+            value={chapterNumber}
+            onChange={(event) =>
+              goToChapter(Number(event.target.value))
+            }
+            aria-label="选择章节"
+          >
+            {Array.from(
+              { length: book.chapter_count },
+              (_, index) => index + 1,
+            ).map((chapter) => (
+              <option key={chapter} value={chapter}>
+                第 {chapter} 章
+              </option>
+            ))}
+          </select>
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={
-                          rightPanelMode === item.id ? 'active' : ''
-                        }
-                        onClick={() => {
-                          setRightPanelMode(item.id)
-                          setStudyMenuOpen(false)
-                        }}
-                      >
-                        <Icon size={17} />
-                        <span>{item.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+          <button
+            type="button"
+            className="chapter-reader-menu-button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="打开阅读设置"
+          >
+            <Menu size={21} />
+          </button>
         </div>
       </section>
 
-      <section className="chapter-v1-layout">
-        <article className="chapter-v1-panel chapter-v1-scripture-panel">
-          <header className="chapter-v1-panel-header">
+      <section className="chapter-reader-layout">
+        <article className="chapter-reader-panel">
+          <header className="chapter-reader-panel-header">
             <span>
               第 {versePage} 页 / 共 {versePageCount} 页
             </span>
-            <small>
-              {book.name_zh} {chapterNumber} ·{' '}
-              {currentTranslation?.name_zh ?? ''}
-            </small>
           </header>
 
-          <div className="chapter-v1-panel-body">
+          <div className="chapter-reader-panel-body">
             {loadingContent ? (
-              <p className="chapter-v1-empty">正在读取经文……</p>
+              <p className="chapter-reader-empty">
+                正在读取经文……
+              </p>
             ) : errorMessage ? (
-              <p className="chapter-v1-empty">{errorMessage}</p>
+              <p className="chapter-reader-empty">
+                {errorMessage}
+              </p>
             ) : currentVerses.length === 0 ? (
-              <p className="chapter-v1-empty">
+              <p className="chapter-reader-empty">
                 当前页面还没有经文内容。
               </p>
             ) : (
               currentVerses.map((verse) => (
-                <p
-                  className="chapter-v1-verse"
-                  key={verse.id}
-                >
+                <p className="chapter-reader-verse" key={verse.id}>
                   <sup>{verse.verse_number}</sup>
                   <span>{verse.verse_text}</span>
                 </p>
@@ -566,7 +566,7 @@ export default function ChapterPage() {
             )}
           </div>
 
-          <footer className="chapter-v1-pagination">
+          <footer className="chapter-reader-pagination">
             <button
               type="button"
               disabled={versePage === 1}
@@ -591,13 +591,14 @@ export default function ChapterPage() {
           </footer>
         </article>
 
-        <article className="chapter-v1-panel chapter-v1-right-panel">
-          <header className="chapter-v1-panel-header">
-            <div className="chapter-v1-ai-menu" ref={aiMenuRef}>
+        <article className="chapter-reader-panel">
+          <header className="chapter-reader-panel-header">
+            <div className="chapter-reader-ai-menu" ref={aiMenuRef}>
               <button
                 type="button"
-                className="chapter-v1-ai-trigger"
+                className="chapter-reader-ai-trigger"
                 onClick={() =>
+                  isAiMode &&
                   setAiMenuOpen((current) => !current)
                 }
               >
@@ -611,7 +612,7 @@ export default function ChapterPage() {
               </button>
 
               {isAiMode && aiMenuOpen && (
-                <div className="chapter-v1-dropdown chapter-v1-ai-dropdown">
+                <div className="chapter-reader-dropdown">
                   {aiModes.map((item) => (
                     <button
                       key={item.id}
@@ -625,7 +626,9 @@ export default function ChapterPage() {
                       }}
                     >
                       <span>{item.label}</span>
-                      {rightPanelMode === item.id && <strong>✓</strong>}
+                      {rightPanelMode === item.id && (
+                        <strong>✓</strong>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -634,7 +637,7 @@ export default function ChapterPage() {
 
             <button
               type="button"
-              className="chapter-v1-copy-button"
+              className="chapter-reader-copy-button"
               onClick={copyRightPanel}
               aria-label="复制当前内容"
             >
@@ -642,11 +645,11 @@ export default function ChapterPage() {
             </button>
           </header>
 
-          <div className="chapter-v1-panel-body chapter-v1-right-body">
+          <div className="chapter-reader-panel-body">
             {isAiMode ? (
               currentVerses.map((verse) => (
                 <p
-                  className="chapter-v1-verse chapter-v1-ai-verse"
+                  className="chapter-reader-verse chapter-reader-ai-verse"
                   key={`${rightPanelMode}-${verse.id}`}
                 >
                   <sup>{verse.verse_number}</sup>
@@ -660,7 +663,7 @@ export default function ChapterPage() {
                 </p>
               ))
             ) : studyContent ? (
-              <div className="chapter-v1-study-content">
+              <div className="chapter-reader-study-content">
                 {studyContent
                   .split(/\n+/)
                   .filter(Boolean)
@@ -671,13 +674,166 @@ export default function ChapterPage() {
                   ))}
               </div>
             ) : (
-              <p className="chapter-v1-empty">
+              <p className="chapter-reader-empty">
                 本栏目内容尚未整理。
               </p>
             )}
           </div>
         </article>
       </section>
+
+      {settingsOpen && (
+        <>
+          <button
+            type="button"
+            className="chapter-reader-settings-backdrop"
+            aria-label="关闭阅读设置"
+            onClick={() => setSettingsOpen(false)}
+          />
+
+          <aside
+            className="chapter-reader-settings-panel"
+            aria-label="阅读设置"
+          >
+            <header>
+              <div>
+                <p>READING SETTINGS</p>
+                <h2>阅读设置</h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(false)}
+                aria-label="关闭阅读设置"
+              >
+                <X size={21} />
+              </button>
+            </header>
+
+            <section className="chapter-reader-settings-section">
+              <h3>译本</h3>
+
+              <div className="chapter-reader-translation-list">
+                {translations.map((translation) => (
+                  <label key={translation.id}>
+                    <input
+                      type="radio"
+                      name="translation"
+                      checked={translationId === translation.id}
+                      onChange={() =>
+                        setTranslationId(translation.id)
+                      }
+                    />
+                    <span>{translation.name_zh}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section className="chapter-reader-settings-section">
+              <h3>研读工具</h3>
+
+              <div className="chapter-reader-study-list">
+                {studyModes.map((item) => {
+                  const Icon = item.icon
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={
+                        rightPanelMode === item.id ? 'active' : ''
+                      }
+                      onClick={() => {
+                        setRightPanelMode(item.id)
+                        setSettingsOpen(false)
+                      }}
+                    >
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            <section className="chapter-reader-settings-section">
+              <h3>排版</h3>
+
+              <div className="chapter-reader-setting-row">
+                <span>字体大小</span>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFontScale((value) =>
+                        Math.max(.85, Number((value - .05).toFixed(2))),
+                      )
+                    }
+                  >
+                    −
+                  </button>
+                  <strong>{Math.round(fontScale * 100)}%</strong>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFontScale((value) =>
+                        Math.min(1.25, Number((value + .05).toFixed(2))),
+                      )
+                    }
+                  >
+                    ＋
+                  </button>
+                </div>
+              </div>
+
+              <div className="chapter-reader-setting-row">
+                <span>行距</span>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLineHeight((value) =>
+                        Math.max(1.55, Number((value - .1).toFixed(2))),
+                      )
+                    }
+                  >
+                    −
+                  </button>
+                  <strong>{lineHeight.toFixed(1)}</strong>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLineHeight((value) =>
+                        Math.min(2.3, Number((value + .1).toFixed(2))),
+                      )
+                    }
+                  >
+                    ＋
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="chapter-reader-night-toggle"
+                onClick={() =>
+                  setNightMode((current) => !current)
+                }
+              >
+                {nightMode ? <Sun size={17} /> : <Moon size={17} />}
+                <span>{nightMode ? '日间模式' : '夜间模式'}</span>
+              </button>
+            </section>
+
+            <footer>
+              <span>
+                当前译本：{currentTranslation?.name_zh ?? ''}
+              </span>
+            </footer>
+          </aside>
+        </>
+      )}
     </main>
   )
 }
