@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
+import AITranslationCard from '../components/AITranslationCard'
 import { supabase } from '../lib/supabase'
 
 type BibleBook = {
@@ -260,6 +261,8 @@ export default function ChapterPage() {
     ? study[activeStudyTab]
     : null
 
+  const firstVerse = verses[0]
+
   function goToChapter(nextChapter: number) {
     if (!book) return
 
@@ -415,17 +418,27 @@ export default function ChapterPage() {
               </div>
             </section>
           ) : (
-            <section className="scripture-reading">
-              {verses.map((verse) => (
-                <p
-                  className="scripture-verse"
-                  key={verse.id}
-                >
-                  <sup>{verse.verse_number}</sup>
-                  {verse.verse_text}
-                </p>
-              ))}
-            </section>
+            <>
+              <section className="scripture-reading">
+                {verses.map((verse) => (
+                  <p
+                    className="scripture-verse"
+                    key={verse.id}
+                  >
+                    <sup>{verse.verse_number}</sup>
+                    {verse.verse_text}
+                  </p>
+                ))}
+              </section>
+
+              {book.id === 1 &&
+                chapterNumber === 1 &&
+                firstVerse && (
+                  <AITranslationCard
+                    reference={`${book.name_zh} ${chapterNumber}:${firstVerse.verse_number}`}
+                  />
+                )}
+            </>
           )}
 
           <section className="reader-study-panel">
@@ -453,7 +466,6 @@ export default function ChapterPage() {
                 <p className="reader-placeholder-label">
                   {activeStudyConfig.eyebrow}
                 </p>
-
                 <h3>{activeStudyConfig.title}</h3>
 
                 <div className="reader-study-copy">
