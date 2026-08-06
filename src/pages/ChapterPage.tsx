@@ -12,11 +12,16 @@ import {
   Sun,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { supabase } from '../lib/supabase'
-import './ChapterPage.css'
 
 type BibleBook = {
   id: number
@@ -24,6 +29,7 @@ type BibleBook = {
   name_en: string | null
   abbreviation: string | null
   chapter_count: number
+  book_order: number
 }
 
 type BibleTranslation = {
@@ -76,27 +82,390 @@ const studyModes: Array<{
   label: string
   icon: typeof BookOpen
 }> = [
-  {
-    id: 'study_overview',
-    label: '章节概览',
-    icon: BookOpen,
-  },
-  {
-    id: 'study_structure',
-    label: '文学结构',
-    icon: Layers3,
-  },
-  {
-    id: 'study_history',
-    label: '历史背景',
-    icon: Landmark,
-  },
-  {
-    id: 'study_themes',
-    label: '神学主题',
-    icon: Sparkles,
-  },
+  { id: 'study_overview', label: '章节概览', icon: BookOpen },
+  { id: 'study_structure', label: '文学结构', icon: Layers3 },
+  { id: 'study_history', label: '历史背景', icon: Landmark },
+  { id: 'study_themes', label: '神学主题', icon: Sparkles },
 ]
+
+const styles = `
+.chapter-reader-page {
+  --paper: #f7f2ea;
+  --paper-deep: #eee5d7;
+  --ink: #302923;
+  --muted: #776e66;
+  --line: #ddd2c3;
+  --accent: #784936;
+  --font-scale: 1;
+  --line-height: 1.9;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+}
+.chapter-reader-page.is-night {
+  --paper: #1f1b18;
+  --paper-deep: #2a2420;
+  --ink: #ece2d4;
+  --muted: #b4a89c;
+  --line: #443a33;
+  --accent: #c08a6d;
+}
+.chapter-reader-status {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  padding: 60px 20px;
+  background: #f7f2ea;
+  color: #302923;
+}
+.chapter-reader-toolbar {
+  position: sticky;
+  top: 76px;
+  z-index: 20;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.chapter-reader-toolbar-inner {
+  width: min(1360px, calc(100% - 48px));
+  min-height: 58px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+}
+.chapter-reader-select {
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%)
+      calc(100% - 12px) 52% / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%)
+      calc(100% - 7px) 52% / 5px 5px no-repeat;
+  color: var(--ink);
+  padding: 12px 24px 12px 0;
+  font: inherit;
+  font-weight: 600;
+}
+.chapter-reader-book-select { justify-self: start; }
+.chapter-reader-chapter-select { justify-self: center; }
+.chapter-reader-menu-button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  justify-self: end;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.chapter-reader-layout {
+  width: min(1360px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+.chapter-reader-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+.chapter-reader-panel-header {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+.chapter-reader-panel-body {
+  flex: 1;
+  min-height: 690px;
+  padding: 12px 24px 8px;
+}
+.chapter-reader-verse {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin: 0;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+  font-family: 'Noto Serif SC', serif;
+  font-size: calc(19px * var(--font-scale));
+  line-height: var(--line-height);
+}
+.chapter-reader-verse:last-child { border-bottom: 0; }
+.chapter-reader-verse sup {
+  top: .2em;
+  color: var(--accent);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+}
+.chapter-reader-ai-verse {
+  font-size: calc(16px * var(--font-scale));
+}
+.chapter-reader-pagination {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 18px;
+  padding: 0 22px;
+  border-top: 1px solid var(--line);
+}
+.chapter-reader-pagination button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 10px 0;
+}
+.chapter-reader-pagination button:last-child { justify-self: end; }
+.chapter-reader-pagination button:disabled {
+  opacity: .3;
+  cursor: not-allowed;
+}
+.chapter-reader-pagination > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.chapter-reader-ai-menu { position: relative; }
+.chapter-reader-ai-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.chapter-reader-ai-trigger svg {
+  transition: transform .2s ease;
+}
+.chapter-reader-ai-trigger svg.is-open {
+  transform: rotate(180deg);
+}
+.chapter-reader-copy-button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.chapter-reader-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 30;
+  min-width: 190px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: 0 18px 44px rgba(31, 24, 19, .14);
+}
+.chapter-reader-dropdown button {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 12px;
+  text-align: left;
+}
+.chapter-reader-dropdown button:hover,
+.chapter-reader-dropdown button.active {
+  background: var(--paper-deep);
+  color: var(--accent);
+}
+.chapter-reader-study-content {
+  padding: 22px 8px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: calc(19px * var(--font-scale));
+  line-height: var(--line-height);
+}
+.chapter-reader-study-content p { margin: 0 0 20px; }
+.chapter-reader-empty {
+  margin: 0;
+  padding: 48px 8px;
+  color: var(--muted);
+  text-align: center;
+}
+.chapter-reader-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  border: 0;
+  background: rgba(27, 22, 18, .28);
+}
+.chapter-reader-settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  width: min(360px, 92vw);
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: -24px 0 60px rgba(31, 24, 19, .16);
+}
+.chapter-reader-settings-panel > header {
+  min-height: 94px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+.chapter-reader-settings-panel > header p {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .2em;
+}
+.chapter-reader-settings-panel > header h2 {
+  margin: 0;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 25px;
+}
+.chapter-reader-settings-panel > header button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.chapter-reader-settings-section {
+  padding: 26px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.chapter-reader-settings-section h3 {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+.chapter-reader-translation-list,
+.chapter-reader-study-list {
+  display: grid;
+  gap: 4px;
+}
+.chapter-reader-translation-list label,
+.chapter-reader-study-list button {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 0;
+  text-align: left;
+}
+.chapter-reader-translation-list input {
+  accent-color: var(--accent);
+}
+.chapter-reader-study-list button.active {
+  color: var(--accent);
+}
+.chapter-reader-setting-row {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.chapter-reader-setting-row > div {
+  display: grid;
+  grid-template-columns: 34px 54px 34px;
+  align-items: center;
+  text-align: center;
+}
+.chapter-reader-setting-row button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+.chapter-reader-setting-row strong {
+  color: var(--muted);
+  font-size: 12px;
+}
+.chapter-reader-night-toggle {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 0;
+}
+.chapter-reader-settings-panel > footer {
+  padding: 22px 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 980px) {
+  .chapter-reader-toolbar { top: 66px; }
+  .chapter-reader-layout { grid-template-columns: 1fr; }
+  .chapter-reader-panel-body { min-height: 0; }
+}
+@media (max-width: 680px) {
+  .chapter-reader-toolbar-inner,
+  .chapter-reader-layout {
+    width: min(100% - 24px, 1360px);
+  }
+  .chapter-reader-toolbar-inner { gap: 12px; }
+  .chapter-reader-select { max-width: 120px; }
+  .chapter-reader-panel-header {
+    min-height: 56px;
+    padding: 0 16px;
+  }
+  .chapter-reader-panel-body {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+  .chapter-reader-verse {
+    font-size: calc(17px * var(--font-scale));
+  }
+  .chapter-reader-pagination {
+    grid-template-columns: 1fr 1fr;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .chapter-reader-pagination > span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    text-align: center;
+  }
+}
+`
 
 function getStudyContent(
   study: BibleChapterStudy | null,
@@ -168,19 +537,22 @@ export default function ChapterPage() {
     params.slug ??
     ''
 
-  const chapterParam =
-    params.chapterNumber ??
-    params.chapter ??
-    params.chapterId ??
-    '1'
+  const chapterNumber =
+    Number(
+      params.chapterNumber ??
+        params.chapter ??
+        params.chapterId ??
+        '1',
+    ) || 1
 
-  const chapterNumber = Number(chapterParam) || 1
-
+  const [allBooks, setAllBooks] = useState<BibleBook[]>([])
   const [book, setBook] = useState<BibleBook | null>(null)
-  const [translations, setTranslations] = useState<
-    BibleTranslation[]
-  >([])
-  const [translationId, setTranslationId] = useState(1)
+  const [webTranslationId, setWebTranslationId] = useState<
+    number | null
+  >(null)
+  const [webTranslationName, setWebTranslationName] = useState(
+    'World English Bible',
+  )
   const [verses, setVerses] = useState<BibleVerse[]>([])
   const [study, setStudy] = useState<BibleChapterStudy | null>(null)
   const [versePage, setVersePage] = useState(1)
@@ -198,9 +570,6 @@ export default function ChapterPage() {
   const aiMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const savedTranslationId = Number(
-      window.localStorage.getItem('sj-translation-id'),
-    )
     const savedFontScale = Number(
       window.localStorage.getItem('sj-font-scale'),
     )
@@ -210,7 +579,6 @@ export default function ChapterPage() {
     const savedNightMode =
       window.localStorage.getItem('sj-night-mode') === 'true'
 
-    if (savedTranslationId) setTranslationId(savedTranslationId)
     if (savedFontScale) setFontScale(savedFontScale)
     if (savedLineHeight) setLineHeight(savedLineHeight)
     setNightMode(savedNightMode)
@@ -224,92 +592,97 @@ export default function ChapterPage() {
   }, [translationId])
 
   useEffect(() => {
-    window.localStorage.setItem(
-      'sj-font-scale',
-      String(fontScale),
-    )
+    window.localStorage.setItem('sj-font-scale', String(fontScale))
   }, [fontScale])
 
   useEffect(() => {
-    window.localStorage.setItem(
-      'sj-line-height',
-      String(lineHeight),
-    )
+    window.localStorage.setItem('sj-line-height', String(lineHeight))
   }, [lineHeight])
 
   useEffect(() => {
-    window.localStorage.setItem(
-      'sj-night-mode',
-      String(nightMode),
-    )
+    window.localStorage.setItem('sj-night-mode', String(nightMode))
   }, [nightMode])
 
   useEffect(() => {
-    async function loadBookAndTranslations() {
+    async function loadBookAndWebTranslation() {
       setLoadingBook(true)
       setErrorMessage('')
 
       const decodedBookKey = decodeURIComponent(bookKey)
 
-      const { data: bookData, error: bookError } = await supabase
-        .from('bible_books')
-        .select(
-          'id, name_zh, name_en, abbreviation, chapter_count',
-        )
-        .or(
-          [
-            `name_en.eq.${decodedBookKey}`,
-            `name_zh.eq.${decodedBookKey}`,
-            `abbreviation.eq.${decodedBookKey}`,
-          ].join(','),
-        )
-        .maybeSingle()
+      const [
+        { data: booksData, error: booksError },
+        { data: webData, error: webError },
+      ] = await Promise.all([
+        supabase
+          .from('bible_books')
+          .select(
+            'id, name_zh, name_en, abbreviation, chapter_count, book_order',
+          )
+          .order('book_order', { ascending: true }),
 
-      if (bookError || !bookData) {
-        console.error(bookError)
-        setErrorMessage('没有找到这卷圣经。')
-        setBook(null)
-        setLoadingBook(false)
-        return
-      }
-
-      const { data: translationData, error: translationError } =
-        await supabase
+        supabase
           .from('bible_translations')
           .select(
             'id, code, name_zh, name_original, language_code',
           )
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true })
+          .eq('code', 'WEB')
+          .maybeSingle(),
+      ])
 
-      if (translationError) {
-        console.error(translationError)
-        setTranslations([])
-      } else {
-        const loadedTranslations =
-          (translationData ?? []) as BibleTranslation[]
-        setTranslations(loadedTranslations)
-
-        if (
-          loadedTranslations.length > 0 &&
-          !loadedTranslations.some(
-            (translation) => translation.id === translationId,
-          )
-        ) {
-          setTranslationId(loadedTranslations[0].id)
-        }
+      if (booksError) {
+        console.error(booksError)
+        setErrorMessage('圣经书卷读取失败。')
+        setLoadingBook(false)
+        return
       }
 
-      setBook(bookData as BibleBook)
+      const loadedBooks = (booksData ?? []) as BibleBook[]
+      setAllBooks(loadedBooks)
+
+      const matchedBook = loadedBooks.find(
+        (item) =>
+          item.name_en === decodedBookKey ||
+          item.name_zh === decodedBookKey ||
+          item.abbreviation === decodedBookKey,
+      )
+
+      if (!matchedBook) {
+        setBook(null)
+        setErrorMessage('没有找到这卷圣经。')
+        setLoadingBook(false)
+        return
+      }
+
+      if (webError || !webData) {
+        console.error(webError)
+        setWebTranslationId(null)
+        setErrorMessage(
+          '没有找到 WEB 译本，请确认 bible_translations 中存在 code=WEB。',
+        )
+        setBook(matchedBook)
+        setLoadingBook(false)
+        return
+      }
+
+      const webTranslation = webData as BibleTranslation
+      setWebTranslationId(webTranslation.id)
+      setWebTranslationName(
+        webTranslation.name_original ??
+          webTranslation.name_zh ??
+          'World English Bible',
+      )
+
+      setBook(matchedBook)
       setLoadingBook(false)
     }
 
-    loadBookAndTranslations()
+    loadBookAndWebTranslation()
   }, [bookKey])
 
   useEffect(() => {
     async function loadChapterContent() {
-      if (!book) return
+      if (!book || !webTranslationId) return
 
       setLoadingContent(true)
       setErrorMessage('')
@@ -324,7 +697,7 @@ export default function ChapterPage() {
           .select(
             'id, verse_number, verse_text, paragraph_start',
           )
-          .eq('translation_id', translationId)
+          .eq('translation_id', webTranslationId)
           .eq('book_id', book.id)
           .eq('chapter_number', chapterNumber)
           .order('verse_number', { ascending: true }),
@@ -334,7 +707,6 @@ export default function ChapterPage() {
           .select(
             'id, overview, historical_background, structure, themes',
           )
-          .eq('translation_id', translationId)
           .eq('book_id', book.id)
           .eq('chapter_number', chapterNumber)
           .order('id', { ascending: false })
@@ -362,7 +734,7 @@ export default function ChapterPage() {
     }
 
     loadChapterContent()
-  }, [book, chapterNumber, translationId])
+  }, [book, chapterNumber, webTranslationId])
 
   useEffect(() => {
     function closeAiMenu(event: MouseEvent) {
@@ -375,25 +747,8 @@ export default function ChapterPage() {
     }
 
     document.addEventListener('mousedown', closeAiMenu)
-
-    return () => {
-      document.removeEventListener('mousedown', closeAiMenu)
-    }
+    return () => document.removeEventListener('mousedown', closeAiMenu)
   }, [])
-
-  useEffect(() => {
-    if (!settingsOpen) return
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setSettingsOpen(false)
-    }
-
-    document.addEventListener('keydown', closeOnEscape)
-
-    return () => {
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [settingsOpen])
 
   const currentTranslation = useMemo(
     () =>
@@ -416,6 +771,10 @@ export default function ChapterPage() {
   const isAiMode = rightPanelMode.startsWith('ai_')
   const studyContent = getStudyContent(study, rightPanelMode)
 
+  function goToBook(routeBookKey: string) {
+    navigate(`/bible/${encodeURIComponent(routeBookKey)}/1`)
+  }
+
   function goToChapter(nextChapter: number) {
     if (!book) return
 
@@ -425,12 +784,6 @@ export default function ChapterPage() {
     navigate(
       `/bible/${encodeURIComponent(routeBookKey)}/${nextChapter}`,
     )
-  }
-
-  function goToVersePage(nextPage: number) {
-    if (nextPage < 1 || nextPage > versePageCount) return
-    setVersePage(nextPage)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function copyRightPanel() {
@@ -448,12 +801,7 @@ export default function ChapterPage() {
       : studyContent ?? ''
 
     if (!copyText) return
-
-    try {
-      await navigator.clipboard.writeText(copyText)
-    } catch (error) {
-      console.error('复制失败', error)
-    }
+    await navigator.clipboard.writeText(copyText)
   }
 
   if (loadingBook && !book) {
@@ -473,41 +821,40 @@ export default function ChapterPage() {
     )
   }
 
+  const pageStyle = {
+    '--font-scale': fontScale,
+    '--line-height': lineHeight,
+  } as CSSProperties
+
   return (
     <main
       className={`chapter-reader-page ${
         nightMode ? 'is-night' : ''
       }`}
-      style={
-        {
-          '--reader-font-scale': fontScale,
-          '--reader-line-height': lineHeight,
-        } as React.CSSProperties
-      }
+      style={pageStyle}
     >
+      <style>{styles}</style>
+
       <section className="chapter-reader-toolbar">
         <div className="chapter-reader-toolbar-inner">
           <select
-            className="chapter-reader-book-select"
+            className="chapter-reader-select chapter-reader-book-select"
             value={book.name_en ?? book.abbreviation ?? ''}
-            onChange={(event) =>
-              navigate(
-                `/bible/${encodeURIComponent(
-                  event.target.value,
-                )}/1`,
-              )
-            }
+            onChange={(event) => goToBook(event.target.value)}
             aria-label="选择书卷"
           >
-            <option
-              value={book.name_en ?? book.abbreviation ?? ''}
-            >
-              {book.name_zh}
-            </option>
+            {allBooks.map((item) => (
+              <option
+                key={item.id}
+                value={item.name_en ?? item.abbreviation ?? String(item.id)}
+              >
+                {item.name_zh}
+              </option>
+            ))}
           </select>
 
           <select
-            className="chapter-reader-chapter-select"
+            className="chapter-reader-select chapter-reader-chapter-select"
             value={chapterNumber}
             onChange={(event) =>
               goToChapter(Number(event.target.value))
@@ -539,22 +886,18 @@ export default function ChapterPage() {
         <article className="chapter-reader-panel">
           <header className="chapter-reader-panel-header">
             <span>
-              第 {versePage} 页 / 共 {versePageCount} 页
+              WEB · 第 {versePage} 页 / 共 {versePageCount} 页
             </span>
           </header>
 
           <div className="chapter-reader-panel-body">
             {loadingContent ? (
-              <p className="chapter-reader-empty">
-                正在读取经文……
-              </p>
+              <p className="chapter-reader-empty">正在读取经文……</p>
             ) : errorMessage ? (
-              <p className="chapter-reader-empty">
-                {errorMessage}
-              </p>
+              <p className="chapter-reader-empty">{errorMessage}</p>
             ) : currentVerses.length === 0 ? (
               <p className="chapter-reader-empty">
-                当前页面还没有经文内容。
+                WEB 数据库中没有找到这一章的经文。
               </p>
             ) : (
               currentVerses.map((verse) => (
@@ -570,7 +913,7 @@ export default function ChapterPage() {
             <button
               type="button"
               disabled={versePage === 1}
-              onClick={() => goToVersePage(versePage - 1)}
+              onClick={() => setVersePage((page) => page - 1)}
             >
               <ChevronLeft size={17} />
               上一页
@@ -583,7 +926,7 @@ export default function ChapterPage() {
             <button
               type="button"
               disabled={versePage === versePageCount}
-              onClick={() => goToVersePage(versePage + 1)}
+              onClick={() => setVersePage((page) => page + 1)}
             >
               下一页
               <ChevronRight size={17} />
@@ -598,8 +941,7 @@ export default function ChapterPage() {
                 type="button"
                 className="chapter-reader-ai-trigger"
                 onClick={() =>
-                  isAiMode &&
-                  setAiMenuOpen((current) => !current)
+                  isAiMode && setAiMenuOpen((current) => !current)
                 }
               >
                 {getPanelTitle(rightPanelMode)}
@@ -626,9 +968,7 @@ export default function ChapterPage() {
                       }}
                     >
                       <span>{item.label}</span>
-                      {rightPanelMode === item.id && (
-                        <strong>✓</strong>
-                      )}
+                      {rightPanelMode === item.id && <strong>✓</strong>}
                     </button>
                   ))}
                 </div>
@@ -691,10 +1031,7 @@ export default function ChapterPage() {
             onClick={() => setSettingsOpen(false)}
           />
 
-          <aside
-            className="chapter-reader-settings-panel"
-            aria-label="阅读设置"
-          >
+          <aside className="chapter-reader-settings-panel">
             <header>
               <div>
                 <p>READING SETTINGS</p>
@@ -711,22 +1048,13 @@ export default function ChapterPage() {
             </header>
 
             <section className="chapter-reader-settings-section">
-              <h3>译本</h3>
+              <h3>经文版本</h3>
 
               <div className="chapter-reader-translation-list">
-                {translations.map((translation) => (
-                  <label key={translation.id}>
-                    <input
-                      type="radio"
-                      name="translation"
-                      checked={translationId === translation.id}
-                      onChange={() =>
-                        setTranslationId(translation.id)
-                      }
-                    />
-                    <span>{translation.name_zh}</span>
-                  </label>
-                ))}
+                <label>
+                  <input type="radio" checked readOnly />
+                  <span>{webTranslationName}（WEB）</span>
+                </label>
               </div>
             </section>
 
@@ -817,9 +1145,7 @@ export default function ChapterPage() {
               <button
                 type="button"
                 className="chapter-reader-night-toggle"
-                onClick={() =>
-                  setNightMode((current) => !current)
-                }
+                onClick={() => setNightMode((current) => !current)}
               >
                 {nightMode ? <Sun size={17} /> : <Moon size={17} />}
                 <span>{nightMode ? '日间模式' : '夜间模式'}</span>
@@ -827,9 +1153,7 @@ export default function ChapterPage() {
             </section>
 
             <footer>
-              <span>
-                当前译本：{currentTranslation?.name_zh ?? ''}
-              </span>
+              当前译本：{webTranslationName}（WEB）
             </footer>
           </aside>
         </>
