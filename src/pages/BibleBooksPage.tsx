@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react'
+import { ArrowRight, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -15,79 +15,109 @@ type BibleBook = {
   chapter_count: number
 }
 
-type BookGroup = {
-  title: string
-  subtitle: string
+type TestamentFilter = 'all' | 'old' | 'new'
+
+type GroupDefinition = {
+  titleZh: string
+  titleEn: string
+  start: number
+  end: number
+}
+
+type BookGroup = GroupDefinition & {
   books: BibleBook[]
 }
 
-const oldTestamentGroups = [
-  { title: '律法书', subtitle: 'THE PENTATEUCH', range: [1, 5] },
-  { title: '历史书', subtitle: 'HISTORICAL BOOKS', range: [6, 17] },
-  { title: '诗歌智慧书', subtitle: 'POETRY & WISDOM', range: [18, 22] },
-  { title: '大先知书', subtitle: 'MAJOR PROPHETS', range: [23, 27] },
-  { title: '小先知书', subtitle: 'MINOR PROPHETS', range: [28, 39] },
+const OLD_TESTAMENT_GROUPS: GroupDefinition[] = [
+  {
+    titleZh: '律法书',
+    titleEn: 'THE PENTATEUCH',
+    start: 1,
+    end: 5,
+  },
+  {
+    titleZh: '历史书',
+    titleEn: 'HISTORICAL BOOKS',
+    start: 6,
+    end: 17,
+  },
+  {
+    titleZh: '诗歌智慧书',
+    titleEn: 'POETRY & WISDOM',
+    start: 18,
+    end: 22,
+  },
+  {
+    titleZh: '大先知书',
+    titleEn: 'MAJOR PROPHETS',
+    start: 23,
+    end: 27,
+  },
+  {
+    titleZh: '小先知书',
+    titleEn: 'MINOR PROPHETS',
+    start: 28,
+    end: 39,
+  },
 ]
 
-const newTestamentGroups = [
-  { title: '四福音', subtitle: 'THE GOSPELS', range: [40, 43] },
-  { title: '教会历史', subtitle: 'CHURCH HISTORY', range: [44, 44] },
-  { title: '保罗书信', subtitle: 'PAULINE EPISTLES', range: [45, 57] },
-  { title: '普通书信', subtitle: 'GENERAL EPISTLES', range: [58, 65] },
-  { title: '启示文学', subtitle: 'APOCALYPSE', range: [66, 66] },
+const NEW_TESTAMENT_GROUPS: GroupDefinition[] = [
+  {
+    titleZh: '四福音',
+    titleEn: 'THE GOSPELS',
+    start: 40,
+    end: 43,
+  },
+  {
+    titleZh: '教会历史',
+    titleEn: 'CHURCH HISTORY',
+    start: 44,
+    end: 44,
+  },
+  {
+    titleZh: '保罗书信',
+    titleEn: 'PAULINE EPISTLES',
+    start: 45,
+    end: 57,
+  },
+  {
+    titleZh: '普通书信',
+    titleEn: 'GENERAL EPISTLES',
+    start: 58,
+    end: 65,
+  },
+  {
+    titleZh: '启示文学',
+    titleEn: 'APOCALYPSE',
+    start: 66,
+    end: 66,
+  },
 ]
 
-function toRomanNumeral(value: number) {
-  const numerals: Array<[number, string]> = [
-    [50, 'L'],
-    [40, 'XL'],
-    [10, 'X'],
-    [9, 'IX'],
-    [5, 'V'],
-    [4, 'IV'],
-    [1, 'I'],
-  ]
-
-  let current = value
-  let result = ''
-
-  numerals.forEach(([number, numeral]) => {
-    while (current >= number) {
-      result += numeral
-      current -= number
-    }
-  })
-
-  return result
-}
-
-function groupBooks(
+function buildGroups(
   books: BibleBook[],
-  definitions: Array<{
-    title: string
-    subtitle: string
-    range: number[]
-  }>,
+  definitions: GroupDefinition[],
 ): BookGroup[] {
   return definitions
     .map((definition) => ({
-      title: definition.title,
-      subtitle: definition.subtitle,
+      ...definition,
       books: books.filter(
         (book) =>
-          book.book_order >= definition.range[0] &&
-          book.book_order <= definition.range[1],
+          book.book_order >= definition.start &&
+          book.book_order <= definition.end,
       ),
     }))
     .filter((group) => group.books.length > 0)
 }
 
+function formatBookNumber(bookOrder: number) {
+  return String(bookOrder).padStart(2, '0')
+}
+
 export default function BibleBooksPage() {
   const [books, setBooks] = useState<BibleBook[]>([])
   const [query, setQuery] = useState('')
-  const [testament, setTestament] = useState<'all' | 'old' | 'new'>(
-    'all',
-  )
+  const [filter, setFilter] = useState<TestamentFilter>('all')
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -118,59 +148,68 @@ export default function BibleBooksPage() {
   }, [])
 
   const filteredBooks = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
+    const normalizedQuery = query.trim().toLowerCase()
 
     return books.filter((book) => {
-      const testamentMatches =
-        testament === 'all' || book.testament === testament
+      const matchesFilter =
+        filter === 'all' || book.testament === filter
 
-      const queryMatches =
-        !normalized ||
+      const matchesQuery =
+        !normalizedQuery ||
         [book.name_zh, book.name_en, book.abbreviation]
           .filter(Boolean)
           .some((value) =>
-            String(value).toLowerCase().includes(normalized),
+            String(value).toLowerCase().includes(normalizedQuery),
           )
 
-      return testamentMatches && queryMatches
+      return matchesFilter && matchesQuery
     })
-  }, [books, query, testament])
+  }, [books, filter, query])
 
-  const oldBooks = filteredBooks.filter(
-    (book) => book.testament === 'old',
+  const oldGroups = useMemo(
+    () =>
+      buildGroups(
+        filteredBooks.filter((book) => book.testament === 'old'),
+        OLD_TESTAMENT_GROUPS,
+      ),
+    [filteredBooks],
   )
 
-  const newBooks = filteredBooks.filter(
-    (book) => book.testament === 'new',
+  const newGroups = useMemo(
+    () =>
+      buildGroups(
+        filteredBooks.filter((book) => book.testament === 'new'),
+        NEW_TESTAMENT_GROUPS,
+      ),
+    [filteredBooks],
   )
-
-  const oldGroups = groupBooks(oldBooks, oldTestamentGroups)
-  const newGroups = groupBooks(newBooks, newTestamentGroups)
 
   return (
-    <main className="bible-library-page">
-      <section className="bible-library-hero">
-        <div className="bible-library-shell">
-          <p className="bible-library-kicker">SCRIPTURE</p>
-          <h1>浏览圣经</h1>
-          <p className="bible-library-intro">
-            从创世记到启示录，按书卷进入经文。
-          </p>
+    <main className="scripture-directory-page">
+      <section className="scripture-directory-header">
+        <div className="scripture-directory-shell">
+          <p className="scripture-directory-eyebrow">SCRIPTURE</p>
+          <h1>圣经</h1>
         </div>
       </section>
 
-      <section className="bible-library-controls">
-        <div className="bible-library-shell bible-library-controls-inner">
-          <label className="bible-library-search">
-            <Search size={18} />
+      <section className="scripture-directory-controls">
+        <div className="scripture-directory-shell scripture-directory-controls-inner">
+          <label className="scripture-directory-search">
+            <Search size={17} />
             <input
+              type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索书卷"
+              aria-label="搜索书卷"
             />
           </label>
 
-          <div className="bible-library-tabs">
+          <div
+            className="scripture-directory-filter"
+            aria-label="筛选旧约或新约"
+          >
             {[
               ['all', '全部'],
               ['old', '旧约'],
@@ -179,9 +218,9 @@ export default function BibleBooksPage() {
               <button
                 key={value}
                 type="button"
-                className={testament === value ? 'active' : ''}
+                className={filter === value ? 'active' : ''}
                 onClick={() =>
-                  setTestament(value as 'all' | 'old' | 'new')
+                  setFilter(value as TestamentFilter)
                 }
               >
                 {label}
@@ -191,36 +230,34 @@ export default function BibleBooksPage() {
         </div>
       </section>
 
-      <section className="bible-library-content">
-        <div className="bible-library-shell">
+      <section className="scripture-directory-content">
+        <div className="scripture-directory-shell">
           {loading ? (
-            <div className="bible-library-status">
+            <div className="scripture-directory-status">
               正在读取圣经书卷……
             </div>
           ) : errorMessage ? (
-            <div className="bible-library-status">
+            <div className="scripture-directory-status">
               {errorMessage}
             </div>
           ) : filteredBooks.length === 0 ? (
-            <div className="bible-library-status">
+            <div className="scripture-directory-status">
               没有找到符合条件的书卷。
             </div>
           ) : (
             <>
-              {testament !== 'new' && oldGroups.length > 0 && (
-                <TestamentSection
-                  eyebrow="OLD TESTAMENT"
-                  title="旧约"
-                  description="律法、历史、诗歌与先知。"
+              {filter !== 'new' && oldGroups.length > 0 && (
+                <TestamentDirectory
+                  titleZh="旧约"
+                  titleEn="OLD TESTAMENT"
                   groups={oldGroups}
                 />
               )}
 
-              {testament !== 'old' && newGroups.length > 0 && (
-                <TestamentSection
-                  eyebrow="NEW TESTAMENT"
-                  title="新约"
-                  description="福音、教会、书信与启示。"
+              {filter !== 'old' && newGroups.length > 0 && (
+                <TestamentDirectory
+                  titleZh="新约"
+                  titleEn="NEW TESTAMENT"
                   groups={newGroups}
                 />
               )}
@@ -232,58 +269,65 @@ export default function BibleBooksPage() {
   )
 }
 
-function TestamentSection({
-  eyebrow,
-  title,
-  description,
+function TestamentDirectory({
+  titleZh,
+  titleEn,
   groups,
 }: {
-  eyebrow: string
-  title: string
-  description: string
+  titleZh: string
+  titleEn: string
   groups: BookGroup[]
 }) {
   return (
-    <section className="testament-section">
-      <header className="testament-heading">
-        <p>{eyebrow}</p>
-        <h2>{title}</h2>
-        <span>{description}</span>
+    <section className="testament-directory">
+      <header className="testament-directory-heading">
+        <p>{titleEn}</p>
+        <h2>{titleZh}</h2>
       </header>
 
       {groups.map((group) => (
-        <section className="book-group" key={group.title}>
-          <header className="book-group-heading">
-            <div>
-              <p>{group.subtitle}</p>
-              <h3>{group.title}</h3>
-            </div>
-            <span>{group.books.length} 卷</span>
+        <section
+          className="scripture-book-group"
+          key={group.titleEn}
+        >
+          <header className="scripture-book-group-heading">
+            <p>{group.titleEn}</p>
+            <h3>{group.titleZh}</h3>
           </header>
 
-          <div className="book-library-grid">
+          <div className="scripture-directory-list">
             {group.books.map((book) => {
               const routeBookKey =
-                book.name_en ?? book.abbreviation ?? String(book.id)
+                book.name_en ??
+                book.abbreviation ??
+                String(book.id)
 
               return (
                 <Link
-                  className="book-library-card"
+                  className="scripture-directory-row"
                   key={book.id}
                   to={`/bible/${encodeURIComponent(routeBookKey)}/1`}
                 >
-                  <span className="book-library-number">
-                    {toRomanNumeral(book.book_order)}
+                  <span className="scripture-directory-number">
+                    {formatBookNumber(book.book_order)}
                   </span>
 
-                  <div className="book-library-copy">
-                    <p>{book.name_en ?? book.abbreviation ?? ''}</p>
-                    <h4>{book.name_zh}</h4>
-                  </div>
+                  <strong className="scripture-directory-name-zh">
+                    {book.name_zh}
+                  </strong>
 
-                  <span className="book-library-chapters">
+                  <span className="scripture-directory-name-en">
+                    {book.name_en ?? book.abbreviation ?? ''}
+                  </span>
+
+                  <span className="scripture-directory-chapters">
                     {book.chapter_count} 章
                   </span>
+
+                  <ArrowRight
+                    className="scripture-directory-arrow"
+                    size={16}
+                  />
                 </Link>
               )
             })}
