@@ -4,8 +4,10 @@ import path from 'node:path'
 const supabaseUrl = process.env.SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseKey = serviceRoleKey ?? process.env.SUPABASE_ANON_KEY
-const ollamaUrl = process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434'
-const model = process.env.OLLAMA_MODEL ?? 'qwen3:4b'
+const geminiApiKey = process.env.GEMINI_API_KEY
+const model = process.env.GEMINI_MODEL ?? 'gemini-3.6-flash'
+const generatorUrl = process.env.GENERATOR_URL
+const generationToken = process.env.GENERATION_TOKEN
 const selectedBooks = (process.env.BOOKS ?? process.env.BOOK ?? '')
   .split(',')
   .map((value) => value.trim().toLowerCase())
@@ -18,6 +20,8 @@ const outputDirectory = path.resolve(process.env.OUTPUT_DIR ?? 'work/generated-b
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('SUPABASE_URL and either SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY are required.')
 }
+if (!generatorUrl && !geminiApiKey) throw new Error('GEMINI_API_KEY or GENERATOR_URL is required.')
+if (generatorUrl && !generationToken) throw new Error('GENERATION_TOKEN is required with GENERATOR_URL.')
 
 const headers = {
   apikey: supabaseKey,
@@ -66,20 +70,42 @@ JSON 结构：
 }
 
 async function generate(book, chapter, verses) {
-  const response = await fetch(`${ollamaUrl}/api/chat`, {
+  if (generatorUrl) {
+    const response = await fetch(generatorUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${generationToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt: promptFor(book, chapter, verses) }),
+    })
+    if (!response.ok) throw new Error(`Generator ${response.status}: ${await response.text()}`)
+    return response.json()
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': geminiApiKey,
+    },
     body: JSON.stringify({
-      model,
-      stream: false,
-      format: 'json',
-      options: { temperature: 0.2, num_ctx: 16384 },
-      messages: [{ role: 'user', content: promptFor(book, chapter, verses) }],
+      contents: [{ role: 'user', parts: [{ text: promptFor(book, chapter, verses) }] }],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+      },
     }),
   })
-  if (!response.ok) throw new Error(`Ollama ${response.status}: ${await response.text()}`)
+  if (!response.ok) throw new Error(`Gemini ${response.status}: ${await response.text()}`)
   const payload = await response.json()
-  return JSON.parse(payload.message.content)
+  const text = payload.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text ?? '')
+    .join('')
+  if (!text) throw new Error('Gemini returned no text content')
+  return JSON.parse(text)
 }
 
 function validate(result, verses) {
