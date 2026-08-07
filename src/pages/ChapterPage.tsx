@@ -47,12 +47,20 @@ type BibleVerse = {
   paragraph_start: boolean | null
 }
 
+type BibleAiVerseContent = {
+  verse_number: number
+  literal_zh: string
+  natural_zh: string
+  source_language_notes_zh: string
+  first_readers_zh: string
+}
+
 type BibleChapterStudy = {
   id: number
-  overview: string | null
-  historical_background: string | null
-  structure: string | null
-  themes: string | null
+  overview_zh: string | null
+  historical_background_zh: string | null
+  structure_zh: string | null
+  theological_themes_zh: string | null
 }
 
 type RightPanelMode =
@@ -475,13 +483,13 @@ function getStudyContent(
 
   switch (mode) {
     case 'study_overview':
-      return study.overview
+      return study.overview_zh
     case 'study_structure':
-      return study.structure
+      return study.structure_zh
     case 'study_history':
-      return study.historical_background
+      return study.historical_background_zh
     case 'study_themes':
-      return study.themes
+      return study.theological_themes_zh
     default:
       return null
   }
@@ -494,36 +502,16 @@ function getPanelTitle(mode: RightPanelMode) {
   return studyModes.find((item) => item.id === mode)?.label ?? '研读工具'
 }
 
-function getFallbackTranslation(
+function getAiTranslation(
   mode: RightPanelMode,
-  verseNumber: number,
-  sourceText: string,
+  content: BibleAiVerseContent | undefined,
 ) {
-  if (mode === 'ai_literal') {
-    if (verseNumber === 1) return '起初，上帝创造了天地。'
-    return sourceText
-  }
-
-  if (mode === 'ai_natural') {
-    if (verseNumber === 1) return '在一切开始的时候，上帝创造了整个宇宙。'
-    return `第${verseNumber}节的意译内容尚未生成。`
-  }
-
-  if (mode === 'ai_hebrew') {
-    if (verseNumber === 1) {
-      return '“天地”是希伯来人的整体表达，指向整个受造界。'
-    }
-    return `第${verseNumber}节的希伯来表达说明尚未生成。`
-  }
-
-  if (mode === 'ai_first_reader') {
-    if (verseNumber === 1) {
-      return '对刚离开埃及的以色列人而言，这节经文宣告：万物都不是神，耶和华才是创造一切的主。'
-    }
-    return `第${verseNumber}节的第一读者理解尚未生成。`
-  }
-
-  return sourceText
+  if (!content) return null
+  if (mode === 'ai_literal') return content.literal_zh
+  if (mode === 'ai_natural') return content.natural_zh
+  if (mode === 'ai_hebrew') return content.source_language_notes_zh
+  if (mode === 'ai_first_reader') return content.first_readers_zh
+  return null
 }
 
 export default function ChapterPage() {
@@ -554,6 +542,9 @@ export default function ChapterPage() {
     'World English Bible',
   )
   const [verses, setVerses] = useState<BibleVerse[]>([])
+  const [aiVerseContent, setAiVerseContent] = useState<
+    BibleAiVerseContent[]
+  >([])
   const [study, setStudy] = useState<BibleChapterStudy | null>(null)
   const [versePage, setVersePage] = useState(1)
   const [rightPanelMode, setRightPanelMode] =
@@ -683,6 +674,7 @@ export default function ChapterPage() {
 
       const [
         { data: verseData, error: verseError },
+        { data: aiData, error: aiError },
         { data: studyData, error: studyError },
       ] = await Promise.all([
         supabase
@@ -696,10 +688,21 @@ export default function ChapterPage() {
           .order('verse_number', { ascending: true }),
 
         supabase
-          .from('bible_chapter_studies')
+          .from('bible_ai_verse_content')
           .select(
-            'id, overview, historical_background, structure, themes',
+            'verse_number, literal_zh, natural_zh, source_language_notes_zh, first_readers_zh',
           )
+          .eq('translation_id', webTranslationId)
+          .eq('book_id', book.id)
+          .eq('chapter_number', chapterNumber)
+          .order('verse_number', { ascending: true }),
+
+        supabase
+          .from('bible_ai_chapter_studies')
+          .select(
+            'id, overview_zh, historical_background_zh, structure_zh, theological_themes_zh',
+          )
+          .eq('translation_id', webTranslationId)
           .eq('book_id', book.id)
           .eq('chapter_number', chapterNumber)
           .order('id', { ascending: false })
@@ -712,6 +715,13 @@ export default function ChapterPage() {
         setVerses([])
       } else {
         setVerses((verseData ?? []) as BibleVerse[])
+      }
+
+      if (aiError) {
+        console.error(aiError)
+        setAiVerseContent([])
+      } else {
+        setAiVerseContent((aiData ?? []) as BibleAiVerseContent[])
       }
 
       if (studyError) {
@@ -755,6 +765,10 @@ export default function ChapterPage() {
 
   const isAiMode = rightPanelMode.startsWith('ai_')
   const studyContent = getStudyContent(study, rightPanelMode)
+  const aiContentByVerse = useMemo(
+    () => new Map(aiVerseContent.map((item) => [item.verse_number, item])),
+    [aiVerseContent],
+  )
 
   function goToBook(routeBookKey: string) {
     navigate(`/bible/${encodeURIComponent(routeBookKey)}/1`)
@@ -776,11 +790,10 @@ export default function ChapterPage() {
       ? currentVerses
           .map(
             (verse) =>
-              `${verse.verse_number} ${getFallbackTranslation(
+              `${verse.verse_number} ${getAiTranslation(
                 rightPanelMode,
-                verse.verse_number,
-                verse.verse_text,
-              )}`,
+                aiContentByVerse.get(verse.verse_number),
+              ) ?? '本节 AI 内容正在生成。'}`,
           )
           .join('\n')
       : studyContent ?? ''
@@ -833,7 +846,7 @@ export default function ChapterPage() {
                 key={item.id}
                 value={item.name_en ?? item.abbreviation ?? String(item.id)}
               >
-                {item.name_zh}
+                {item.name_en ?? item.name_zh} · {item.name_zh}
               </option>
             ))}
           </select>
@@ -851,7 +864,7 @@ export default function ChapterPage() {
               (_, index) => index + 1,
             ).map((chapter) => (
               <option key={chapter} value={chapter}>
-                第 {chapter} 章
+                Chapter {chapter}
               </option>
             ))}
           </select>
@@ -979,11 +992,10 @@ export default function ChapterPage() {
                 >
                   <sup>{verse.verse_number}</sup>
                   <span>
-                    {getFallbackTranslation(
+                    {getAiTranslation(
                       rightPanelMode,
-                      verse.verse_number,
-                      verse.verse_text,
-                    )}
+                      aiContentByVerse.get(verse.verse_number),
+                    ) ?? '本节 AI 内容正在生成。'}
                   </span>
                 </p>
               ))

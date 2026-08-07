@@ -30,31 +30,31 @@ type BookGroup = GroupDefinition & {
 
 const OLD_TESTAMENT_GROUPS: GroupDefinition[] = [
   {
-    titleZh: '律法书',
+    titleZh: 'Pentateuch',
     titleEn: 'THE PENTATEUCH',
     start: 1,
     end: 5,
   },
   {
-    titleZh: '历史书',
+    titleZh: 'Historical Books',
     titleEn: 'HISTORICAL BOOKS',
     start: 6,
     end: 17,
   },
   {
-    titleZh: '诗歌智慧书',
+    titleZh: 'Poetry & Wisdom',
     titleEn: 'POETRY & WISDOM',
     start: 18,
     end: 22,
   },
   {
-    titleZh: '大先知书',
+    titleZh: 'Major Prophets',
     titleEn: 'MAJOR PROPHETS',
     start: 23,
     end: 27,
   },
   {
-    titleZh: '小先知书',
+    titleZh: 'Minor Prophets',
     titleEn: 'MINOR PROPHETS',
     start: 28,
     end: 39,
@@ -63,31 +63,31 @@ const OLD_TESTAMENT_GROUPS: GroupDefinition[] = [
 
 const NEW_TESTAMENT_GROUPS: GroupDefinition[] = [
   {
-    titleZh: '四福音',
+    titleZh: 'The Gospels',
     titleEn: 'THE GOSPELS',
     start: 40,
     end: 43,
   },
   {
-    titleZh: '教会历史',
+    titleZh: 'Church History',
     titleEn: 'CHURCH HISTORY',
     start: 44,
     end: 44,
   },
   {
-    titleZh: '保罗书信',
+    titleZh: 'Pauline Epistles',
     titleEn: 'PAULINE EPISTLES',
     start: 45,
     end: 57,
   },
   {
-    titleZh: '普通书信',
+    titleZh: 'General Epistles',
     titleEn: 'GENERAL EPISTLES',
     start: 58,
     end: 65,
   },
   {
-    titleZh: '启示文学',
+    titleZh: 'Apocalypse',
     titleEn: 'APOCALYPSE',
     start: 66,
     end: 66,
@@ -136,7 +136,7 @@ export default function BibleBooksPage() {
       if (error) {
         console.error(error)
         setBooks([])
-        setErrorMessage('圣经书卷读取失败，请稍后刷新页面。')
+        setErrorMessage('Unable to load Bible books. Please refresh and try again.')
       } else {
         setBooks((data ?? []) as BibleBook[])
       }
@@ -188,12 +188,12 @@ export default function BibleBooksPage() {
     <main className="scripture-directory-page">
       <section className="scripture-directory-header">
         <div className="scripture-directory-shell">
-          <p className="scripture-directory-eyebrow">SCRIPTURE</p>
-          <h1>圣经</h1>
+          <p className="scripture-directory-eyebrow">THE HOLY BIBLE</p>
+          <h1>Bible</h1>
           <div className="scripture-directory-intro">
-            <p>六十六卷书，一条从创造、救赎直到新创造的完整叙事。</p>
+            <p>Sixty-six books. One story—from creation and redemption to new creation.</p>
             {!loading && !errorMessage && (
-              <span>{books.length} 卷 · 旧约 39 · 新约 27</span>
+              <span>{books.length} books · 39 Old Testament · 27 New Testament</span>
             )}
           </div>
         </div>
@@ -207,8 +207,8 @@ export default function BibleBooksPage() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索书卷"
-              aria-label="搜索书卷"
+              placeholder="Search books"
+              aria-label="Search Bible books"
             />
           </label>
 
@@ -217,9 +217,9 @@ export default function BibleBooksPage() {
             aria-label="筛选旧约或新约"
           >
             {[
-              ['all', '全部'],
-              ['old', '旧约'],
-              ['new', '新约'],
+              ['all', 'All'],
+              ['old', 'Old Testament'],
+              ['new', 'New Testament'],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -240,7 +240,7 @@ export default function BibleBooksPage() {
         <div className="scripture-directory-shell">
           {loading ? (
             <div className="scripture-directory-status">
-              正在读取圣经书卷……
+              Loading Bible books…
             </div>
           ) : errorMessage ? (
             <div className="scripture-directory-status">
@@ -249,9 +249,9 @@ export default function BibleBooksPage() {
           ) : filteredBooks.length === 0 ? (
             <div className="scripture-directory-status">
               <div>
-                <p>没有找到符合条件的书卷。</p>
+                <p>No books match your search.</p>
                 <button type="button" onClick={() => setQuery('')}>
-                  清除搜索
+                  Clear search
                 </button>
               </div>
             </div>
@@ -259,7 +259,7 @@ export default function BibleBooksPage() {
             <>
               {filter !== 'new' && oldGroups.length > 0 && (
                 <TestamentDirectory
-                  titleZh="旧约"
+                  titleZh="Old Testament"
                   titleEn="OLD TESTAMENT"
                   groups={oldGroups}
                 />
@@ -267,7 +267,7 @@ export default function BibleBooksPage() {
 
               {filter !== 'old' && newGroups.length > 0 && (
                 <TestamentDirectory
-                  titleZh="新约"
+                  titleZh="New Testament"
                   titleEn="NEW TESTAMENT"
                   groups={newGroups}
                 />
@@ -324,15 +324,15 @@ function TestamentDirectory({
                   </span>
 
                   <strong className="scripture-directory-name-zh">
-                    {book.name_zh}
+                    {book.name_en ?? book.abbreviation ?? book.name_zh}
                   </strong>
 
                   <span className="scripture-directory-name-en">
-                    {book.name_en ?? book.abbreviation ?? ''}
+                    {book.name_zh}
                   </span>
 
                   <span className="scripture-directory-chapters">
-                    {book.chapter_count} 章
+                    {book.chapter_count} chapters
                   </span>
 
                   <ArrowRight

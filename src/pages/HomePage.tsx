@@ -31,10 +31,10 @@ const entries = [
 ]
 
 const quickBooks = [
-  { name: '创世记', english: 'Genesis', chapters: 50 },
-  { name: '诗篇', english: 'Psalms', chapters: 150 },
-  { name: '路加福音', english: 'Luke', chapters: 24 },
-  { name: '罗马书', english: 'Romans', chapters: 16 },
+  { name: 'Genesis', secondary: '创世记', chapters: 50 },
+  { name: 'Psalms', secondary: '诗篇', chapters: 150 },
+  { name: 'Luke', secondary: '路加福音', chapters: 24 },
+  { name: 'Romans', secondary: '罗马书', chapters: 16 },
 ]
 
 export default function HomePage() {
@@ -92,15 +92,15 @@ export default function HomePage() {
             {quickBooks.map((book, index) => (
               <Link
                 className="home-book-spine"
-                key={book.english}
-                to={`/bible/${book.english}/1`}
+                key={book.name}
+                to={`/bible/${book.name}/1`}
               >
                 <span>{String(index + 1).padStart(2, '0')}</span>
                 <div>
                   <strong>{book.name}</strong>
-                  <small>{book.english.toUpperCase()}</small>
+                  <small>{book.secondary}</small>
                 </div>
-                <em>{book.chapters} 章</em>
+                <em>{book.chapters} chapters</em>
                 <ArrowRight size={16} />
               </Link>
             ))}
