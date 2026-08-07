@@ -190,6 +190,12 @@ export default function BibleBooksPage() {
         <div className="scripture-directory-shell">
           <p className="scripture-directory-eyebrow">SCRIPTURE</p>
           <h1>圣经</h1>
+          <div className="scripture-directory-intro">
+            <p>六十六卷书，一条从创造、救赎直到新创造的完整叙事。</p>
+            {!loading && !errorMessage && (
+              <span>{books.length} 卷 · 旧约 39 · 新约 27</span>
+            )}
+          </div>
         </div>
       </section>
 
@@ -242,7 +248,12 @@ export default function BibleBooksPage() {
             </div>
           ) : filteredBooks.length === 0 ? (
             <div className="scripture-directory-status">
-              没有找到符合条件的书卷。
+              <div>
+                <p>没有找到符合条件的书卷。</p>
+                <button type="button" onClick={() => setQuery('')}>
+                  清除搜索
+                </button>
+              </div>
             </div>
           ) : (
             <>

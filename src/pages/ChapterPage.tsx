@@ -585,13 +585,6 @@ export default function ChapterPage() {
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(
-      'sj-translation-id',
-      String(translationId),
-    )
-  }, [translationId])
-
-  useEffect(() => {
     window.localStorage.setItem('sj-font-scale', String(fontScale))
   }, [fontScale])
 
@@ -749,14 +742,6 @@ export default function ChapterPage() {
     document.addEventListener('mousedown', closeAiMenu)
     return () => document.removeEventListener('mousedown', closeAiMenu)
   }, [])
-
-  const currentTranslation = useMemo(
-    () =>
-      translations.find(
-        (translation) => translation.id === translationId,
-      ),
-    [translationId, translations],
-  )
 
   const versePageCount = Math.max(
     1,

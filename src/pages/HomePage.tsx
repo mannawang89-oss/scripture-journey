@@ -30,6 +30,13 @@ const entries = [
   },
 ]
 
+const quickBooks = [
+  { name: '创世记', english: 'Genesis', chapters: 50 },
+  { name: '诗篇', english: 'Psalms', chapters: 150 },
+  { name: '路加福音', english: 'Luke', chapters: 24 },
+  { name: '罗马书', english: 'Romans', chapters: 16 },
+]
+
 export default function HomePage() {
   return (
     <>
@@ -65,6 +72,38 @@ export default function HomePage() {
               <div className="paper-rule"></div>
               <small>READ · STUDY · REMEMBER</small>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="home-quick-start" aria-labelledby="quick-start-title">
+        <div className="container">
+          <div className="home-quick-heading">
+            <div>
+              <span className="eyebrow">OPEN A BOOK</span>
+              <h2 id="quick-start-title">从经文本身开始</h2>
+            </div>
+            <Link className="text-link" to="/bible">
+              完整圣经目录 <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          <div className="home-book-shelf">
+            {quickBooks.map((book, index) => (
+              <Link
+                className="home-book-spine"
+                key={book.english}
+                to={`/bible/${book.english}/1`}
+              >
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <strong>{book.name}</strong>
+                  <small>{book.english.toUpperCase()}</small>
+                </div>
+                <em>{book.chapters} 章</em>
+                <ArrowRight size={16} />
+              </Link>
+            ))}
           </div>
         </div>
       </section>
