@@ -762,76 +762,6 @@ button { cursor: pointer; }
   width:100%;
 }
 
-/* ---------- AI ---------- */
-
-.sermon-ai-panel{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:36px;
-  padding:30px 32px;
-  border:1px solid var(--line);
-  border-radius:22px;
-  background:linear-gradient(
-    135deg,
-    #f9f4ea,
-    #efe3d3
-  );
-  margin-bottom:48px;
-}
-
-.sermon-ai-panel h2{
-  margin:8px 0;
-  font-family:'Noto Serif SC',serif;
-  font-size:28px;
-}
-
-.sermon-ai-panel p:last-child{
-  color:var(--muted);
-  line-height:1.8;
-}
-
-.sermon-copy-message{
-  margin-top:14px;
-  color:var(--accent);
-  font-weight:600;
-}
-
-.sermon-ai-actions{
-  display:flex;
-  gap:12px;
-}
-
-.sermon-ai-actions button,
-.sermon-ai-actions a{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:12px 20px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  font-size:14px;
-  transition:.2s;
-}
-
-.sermon-ai-actions button{
-  background:var(--accent);
-  color:white;
-  border-color:var(--accent);
-}
-
-.sermon-ai-actions button:hover{
-  background:var(--accent-dark);
-}
-
-.sermon-ai-actions a{
-  background:white;
-}
-
-.sermon-ai-actions a:hover{
-  background:var(--paper);
-}
-
 /* ---------- 鍐呭 ---------- */
 
 .sermon-content-grid{
@@ -925,22 +855,6 @@ border-left:0;
 border-top:1px solid var(--line);
 padding-left:0;
 padding-top:26px;
-}
-
-.sermon-ai-panel{
-flex-direction:column;
-align-items:flex-start;
-}
-
-.sermon-ai-actions{
-width:100%;
-flex-direction:column;
-}
-
-.sermon-ai-actions button,
-.sermon-ai-actions a{
-justify-content:center;
-width:100%;
 }
 
 }

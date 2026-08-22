@@ -2,8 +2,6 @@ import {
   ArrowLeft,
   CalendarDays,
   ChevronDown,
-  Copy,
-  ExternalLink,
   Mic2,
   ScrollText,
 } from 'lucide-react'
@@ -132,7 +130,6 @@ export default function SermonDetailPage() {
   const [sermon, setSermon] = useState<Sermon | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [copyMessage, setCopyMessage] = useState('')
 
   const [openSections, setOpenSections] = useState<
     Record<string, boolean>
@@ -219,70 +216,6 @@ export default function SermonDetailPage() {
       ...current,
       [sectionName]: !current[sectionName],
     }))
-  }
-
-  async function copyAiPrompt() {
-    if (!sermon) return
-
-    const prompt = `请根据我接下来上传的讲道音频或文字稿，严格依据实际内容完成 Scripture Journey Analysis。
-
-讲道标题：${sermon.title}
-讲员：${sermon.speaker ?? '未填写'}
-日期：${formatDate(sermon.sermon_date)}
-主要经文：${sermon.scripture_reference ?? '未填写'}
-
-请输出以下栏目：
-
-## 讲道摘要
-300—500字，说明讲员如何解释经文、如何推进论证，以及最终结论。
-
-## 中心思想
-用一段话准确概括整篇讲道最核心的神学命题。
-
-## 讲道大纲
-按照讲道真实结构整理一级和二级标题，不要强行凑成三点式。
-
-## 重要金句
-只保留能够确认是讲员实际表达过的内容。无法确认原话时标注意译。
-
-## 引用经文
-列出讲道中实际引用或重点解释的经文。
-
-## 历史背景
-只补充与该段经文理解直接相关的历史处境。
-
-## 文学上下文
-说明该段经文在整章、整卷书中的位置和作用。
-
-## 原文重点
-只整理讲道实际涉及或有助于理解经文的希伯来文、希腊文重点。
-
-## 基督中心
-说明经文如何在整本圣经中指向基督与福音，避免脱离上下文。
-
-## 整本圣经连接
-列出与讲道主题直接相关的互文和交叉经文。
-
-## 神学主题
-提供3—8个主题。
-
-## 讲员特色
-只根据这篇讲道可观察到的表达与释经特点进行概括，不进行宗派猜测。
-
-整理原则：
-1. 不制造音频或文字稿中不存在的内容。
-2. 区分讲员原意、经文原意和整理者概括。
-3. 尊重经文上下文与第一读者处境。
-4. 不加入个人回应模块。`
-
-    try {
-      await navigator.clipboard.writeText(prompt)
-      setCopyMessage('整理提示词已复制')
-      window.setTimeout(() => setCopyMessage(''), 2500)
-    } catch (error) {
-      console.error(error)
-      setCopyMessage('复制失败，请重试')
-    }
   }
 
   if (loading) {
@@ -422,43 +355,6 @@ export default function SermonDetailPage() {
               这篇讲道尚未关联音频文件。
             </p>
           )}
-        </section>
-
-        <section className="sermon-ai-panel">
-          <div>
-            <p className="sermon-section-eyebrow">
-              AI ASSISTED STUDY
-            </p>
-
-            <h2>使用 ChatGPT 整理讲道</h2>
-
-            <p>
-              复制 Scripture Journey 分析提示词，再把讲道音频、
-              摘要或转写稿上传到 ChatGPT。
-            </p>
-
-            {copyMessage && (
-              <p className="sermon-copy-message">
-                {copyMessage}
-              </p>
-            )}
-          </div>
-
-          <div className="sermon-ai-actions">
-            <button type="button" onClick={copyAiPrompt}>
-              <Copy size={17} />
-              复制整理提示词
-            </button>
-
-            <a
-              href="https://chatgpt.com/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              打开 ChatGPT
-              <ExternalLink size={16} />
-            </a>
-          </div>
         </section>
 
         <div className="sermon-content-grid">
