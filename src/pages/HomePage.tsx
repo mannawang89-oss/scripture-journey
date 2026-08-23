@@ -33,23 +33,12 @@ export default function HomePage() {
         <div className="container hero-grid">
           <div className="hero-copy">
             <span className="hero-ornament" aria-hidden="true">✦</span>
-            <h1>在这里，慢慢读完整本圣经。</h1>
+            <h1>祢的帐幕在人间</h1>
             <Link className="hero-text-link" to="/bible">
               翻开圣经目录 <ArrowRight size={16} />
             </Link>
           </div>
 
-          <div className="hero-visual" aria-hidden="true">
-            <div className="paper-card paper-back" />
-            <div className="paper-card paper-front">
-              <span>THE GOSPEL ACCORDING TO LUKE</span>
-              <div className="paper-emblem">SJ</div>
-              <h2>“要叫你知道所学之道，都是确实的。”</h2>
-              <p>路加福音 1:4</p>
-              <div className="paper-rule" />
-              <small>READ · STUDY · UNDERSTAND</small>
-            </div>
-          </div>
         </div>
       </section>
 
