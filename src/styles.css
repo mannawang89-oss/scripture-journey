@@ -102,7 +102,7 @@ button { cursor: pointer; }
   overflow: hidden;
   background:
     linear-gradient(90deg, rgba(248,238,217,.96) 0%, rgba(248,238,217,.86) 36%, rgba(248,238,217,.28) 65%, rgba(248,238,217,.08) 100%),
-    url('/images/cologne-cathedral-bg.png') center right / cover no-repeat;
+    url('/images/cologne-cathedral-bg.png') right top / cover no-repeat;
 }
 .hero::before {
   content: '';
