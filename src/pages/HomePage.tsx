@@ -14,13 +14,6 @@ const collections = [
   },
 ]
 
-const quickBooks = [
-  { name: 'Genesis', secondary: '创世记', chapters: 50 },
-  { name: 'Psalms', secondary: '诗篇', chapters: 150 },
-  { name: 'Luke', secondary: '路加福音', chapters: 24 },
-  { name: 'Romans', secondary: '罗马书', chapters: 16 },
-]
-
 export default function HomePage() {
   return (
     <>
@@ -53,35 +46,6 @@ export default function HomePage() {
                   <strong>{entry.title}</strong>
                 </span>
                 <ArrowRight size={17} />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="home-quick-start" aria-labelledby="quick-start-title">
-        <div className="container">
-          <div className="home-quick-heading">
-            <h2 id="quick-start-title">从一卷书开始</h2>
-            <Link className="text-link" to="/bible">
-              完整圣经目录 <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          <div className="home-book-shelf">
-            {quickBooks.map((book, index) => (
-              <Link
-                className="home-book-spine"
-                key={book.name}
-                to={`/bible/${book.name}/1`}
-              >
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <div>
-                  <strong>{book.name}</strong>
-                  <small>{book.secondary}</small>
-                </div>
-                <em>{book.chapters} 章</em>
-                <ArrowRight size={16} />
               </Link>
             ))}
           </div>
