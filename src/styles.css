@@ -1098,6 +1098,76 @@ padding-top:26px;
   box-shadow: 0 8px 20px rgba(123,74,45,.22);
 }
 
+/* Sermon archive hero */
+.sermons-library-page {
+  min-height: 100vh;
+}
+
+.sermons-library-hero {
+  min-height: 430px;
+  display: flex;
+  align-items: center;
+  color: #3b2a20;
+  border-bottom: 1px solid rgba(120, 77, 45, .28);
+  background:
+    linear-gradient(90deg, rgba(249, 231, 190, .95) 0%, rgba(247, 226, 181, .82) 38%, rgba(247, 226, 181, .18) 66%, rgba(247, 226, 181, .04) 100%),
+    url('/images/sermon-pulpit-bg.png') right center / cover no-repeat;
+}
+
+.sermons-library-heading {
+  width: min(560px, 52%);
+}
+
+.sermons-library-heading .section-heading {
+  margin-bottom: 34px;
+}
+
+.sermons-library-heading .section-heading h2 {
+  color: #3b2a20;
+}
+
+.sermon-search {
+  width: min(420px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  color: #795a45;
+  border-bottom: 1px solid rgba(92, 57, 35, .5);
+}
+
+.sermon-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #3b2a20;
+  background: transparent;
+}
+
+.sermon-search input::placeholder {
+  color: #876f5e;
+}
+
+.sermons-library-content {
+  padding-top: 72px;
+  padding-bottom: 92px;
+}
+
+@media (max-width: 700px) {
+  .sermons-library-hero {
+    min-height: 390px;
+    align-items: flex-end;
+    padding-bottom: 38px;
+    background:
+      linear-gradient(0deg, rgba(248, 228, 188, .97) 0%, rgba(248, 228, 188, .78) 48%, rgba(248, 228, 188, .2) 100%),
+      url('/images/sermon-pulpit-bg.png') 68% center / cover no-repeat;
+  }
+
+  .sermons-library-heading {
+    width: 100%;
+  }
+}
+
 /* Final type treatment: rounded and confidently weighted */
 .brand strong,
 .hero h1,

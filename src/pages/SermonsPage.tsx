@@ -78,24 +78,28 @@ export default function SermonsPage() {
   }
 
   return (
-    <section className="page-section sermons-library-page">
-      <div className="container">
-        <div className="sermons-library-heading">
-          <SectionHeading
-            eyebrow="SERMON ARCHIVE"
-            title="讲道资源"
-          />
-
-          <label className="sermon-search">
-            <Search size={18} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索标题、讲员或经文"
+    <section className="sermons-library-page">
+      <div className="sermons-library-hero">
+        <div className="container">
+          <div className="sermons-library-heading">
+            <SectionHeading
+              eyebrow="SERMON ARCHIVE"
+              title="讲道资源"
             />
-          </label>
-        </div>
 
+            <label className="sermon-search">
+              <Search size={18} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索标题、讲员或经文"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="container sermons-library-content">
         {loading ? (
           <div className="sermons-status-card">
             <p>正在读取讲道资料……</p>
