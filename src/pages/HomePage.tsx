@@ -12,11 +12,6 @@ const collections = [
     title: '讲道资料',
     to: '/sermons',
   },
-  {
-    number: 'III',
-    title: '研经阅读',
-    to: '/bible',
-  },
 ]
 
 const quickBooks = [

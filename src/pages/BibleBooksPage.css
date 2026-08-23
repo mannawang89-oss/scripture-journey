@@ -2,8 +2,8 @@
   min-height: 100vh;
   background:
     linear-gradient(
-      rgba(61, 47, 40, .98),
-      rgba(48, 37, 32, .99)
+      rgba(108, 84, 71, .98),
+      rgba(88, 67, 57, .99)
     ),
     radial-gradient(
       circle at top left,
@@ -58,7 +58,7 @@
   top: 76px;
   z-index: 12;
   border-bottom: 1px solid var(--line);
-  background: rgba(57, 44, 37, .95);
+  background: rgba(91, 70, 59, .95);
   backdrop-filter: blur(12px);
 }
 

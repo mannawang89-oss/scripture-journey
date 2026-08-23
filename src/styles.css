@@ -3,18 +3,18 @@
 :root {
   font-family: 'Noto Sans SC', system-ui, sans-serif;
   color: #efe5d6;
-  background: #392d27;
+  background: #6c5548;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --paper: #46372f;
-  --paper-deep: #514036;
+  --paper: #765e50;
+  --paper-deep: #82695a;
   --ink: #efe5d6;
-  --muted: #c5b5a5;
-  --line: #715849;
+  --muted: #dfd0c0;
+  --line: #9a7b67;
   --accent: #d4a761;
   --accent-dark: #efd096;
-  --night: #302520;
-  --night-soft: #44342c;
+  --night: #59443a;
+  --night-soft: #6a5145;
   --gold: #d4a761;
   --cream: #f2e7d7;
   --max: 1080px;
@@ -26,7 +26,7 @@ body {
   margin: 0;
   min-width: 320px;
   color: var(--ink);
-  background-color: #392d27;
+  background-color: #6c5548;
   background-image:
     radial-gradient(circle at 12% 6%, rgba(118,69,47,.14), transparent 34rem),
     repeating-linear-gradient(0deg, rgba(214,184,137,.018) 0, rgba(214,184,137,.018) 1px, transparent 1px, transparent 4px);
@@ -39,7 +39,7 @@ button { cursor: pointer; }
 .site-header {
   position: sticky; top: 0; z-index: 20;
   color: var(--cream);
-  background: rgba(55, 42, 35, .96);
+  background: rgba(91, 69, 58, .96);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(182, 150, 104, .3);
   box-shadow: 0 8px 30px rgba(24, 16, 12, .16);
@@ -109,7 +109,7 @@ button { cursor: pointer; }
 .home-collections {
   padding: 76px 0 86px;
   background:
-    linear-gradient(rgba(66,51,43,.97), rgba(53,41,35,.98)),
+    linear-gradient(rgba(116,91,76,.97), rgba(96,73,62,.98)),
     repeating-linear-gradient(90deg, rgba(202,164,105,.025) 0, rgba(202,164,105,.025) 1px, transparent 1px, transparent 7px);
 }
 .home-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; padding-bottom: 20px; border-bottom: 3px double rgba(192,154,100,.3); }
@@ -129,7 +129,7 @@ button { cursor: pointer; }
   color: #e8dccb;
   border-top: 1px solid rgba(182,150,104,.32);
   border-bottom: 1px solid rgba(182,150,104,.32);
-  background: linear-gradient(145deg, #4b392f, #352923);
+  background: linear-gradient(145deg, #806454, #614b40);
 }
 .home-quick-start .eyebrow,
 .home-quick-start .text-link,
@@ -139,7 +139,7 @@ button { cursor: pointer; }
 .home-quick-start .home-book-spine { border-color: rgba(182,150,104,.28); }
 .home-quick-start .home-book-spine small,
 .home-quick-start .home-book-spine em { color: #9f9082; }
-.home-quick-start .home-book-spine:hover { color: var(--ink); background: #35251f; }
+.home-quick-start .home-book-spine:hover { color: var(--ink); background: #8a6c5b; }
 .home-quick-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 28px; }
 .home-quick-heading h2 { margin: 8px 0 0; font-family: 'Noto Serif SC', serif; font-size: clamp(25px, 3vw, 34px); font-weight: 500; letter-spacing: .04em; }
 .home-book-shelf { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -154,7 +154,7 @@ button { cursor: pointer; }
 .home-book-spine > svg { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--accent); }
 
 .content-section, .page-section { padding: 82px 0; }
-.muted-section { background: #44352e; }
+.muted-section { background: #745b4e; }
 .section-heading { max-width: 680px; margin-bottom: 32px; }
 .section-heading h2 { font-size: clamp(31px, 4vw, 48px); margin: 12px 0 12px; letter-spacing: -.03em; }
 .section-heading p { color: var(--muted); line-height: 1.8; margin: 0; }
@@ -263,7 +263,7 @@ button { cursor: pointer; }
 .empty-state h3 { font-family: 'Noto Serif SC', serif; font-size: 26px; margin: 0 0 10px; }
 .empty-state p { color: var(--muted); max-width: 520px; margin: 0 auto 24px; line-height: 1.8; }
 
-.site-footer { color: var(--cream); border-top: 1px solid rgba(182,150,104,.3); padding: 34px 0; background: #30251f; }
+.site-footer { color: var(--cream); border-top: 1px solid rgba(218,177,112,.38); padding: 34px 0; background: #59443a; }
 .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .site-footer strong { font-family: 'Noto Serif SC', serif; }
 .site-footer p { color: #9f9082; margin: 6px 0 0; font-size: 13px; }
@@ -338,7 +338,7 @@ button { cursor: pointer; }
   top: 76px;
   z-index: 12;
   border-bottom: 1px solid var(--line);
-  background: rgba(28, 22, 19, .94);
+  background: rgba(102, 79, 67, .94);
   backdrop-filter: blur(14px);
 }
 
