@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
 :root {
   font-family: 'Noto Sans SC', system-ui, sans-serif;
@@ -25,11 +25,46 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   min-width: 320px;
+  font-weight: 500;
   color: var(--ink);
   background-color: #6c5548;
   background-image:
     radial-gradient(circle at 12% 6%, rgba(118,69,47,.14), transparent 34rem),
     repeating-linear-gradient(0deg, rgba(214,184,137,.018) 0, rgba(214,184,137,.018) 1px, transparent 1px, transparent 4px);
+}
+
+/* Softer, fuller Chinese typography */
+.brand strong,
+.hero h1,
+.section-heading h2,
+.book-card h3,
+.chapter-intro h3,
+.paper-front h2,
+.home-section-heading h2,
+.collection-name strong,
+.continue-card h3,
+.entry-card h3,
+.reading-aside h3,
+.empty-state h3,
+.site-footer strong,
+.scripture-text {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+}
+
+.hero h1,
+.section-heading h2,
+.home-section-heading h2 {
+  font-weight: 700;
+}
+
+.collection-name strong,
+.book-card h3,
+.chapter-intro h3,
+.continue-card h3,
+.entry-card h3,
+.reading-aside h3,
+.empty-state h3 {
+  font-weight: 600;
 }
 a { color: inherit; text-decoration: none; }
 button, input { font: inherit; }
@@ -1061,4 +1096,41 @@ padding-top:26px;
   transform: translateY(-2px);
 
   box-shadow: 0 8px 20px rgba(123,74,45,.22);
+}
+
+/* Final type treatment: rounded and confidently weighted */
+.brand strong,
+.hero h1,
+.section-heading h2,
+.book-card h3,
+.chapter-intro h3,
+.paper-front h2,
+.home-section-heading h2,
+.collection-name strong,
+.continue-card h3,
+.entry-card h3,
+.reading-aside h3,
+.empty-state h3,
+.site-footer strong,
+.scripture-text,
+.sermon-study-notes,
+.sermon-accordion-trigger strong {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+}
+
+.hero h1,
+.section-heading h2,
+.home-section-heading h2 {
+  font-weight: 700;
+}
+
+.collection-name strong,
+.book-card h3,
+.chapter-intro h3,
+.continue-card h3,
+.entry-card h3,
+.reading-aside h3,
+.empty-state h3,
+.sermon-accordion-trigger strong {
+  font-weight: 600;
 }
