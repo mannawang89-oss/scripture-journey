@@ -1,31 +1,26 @@
-import { ArrowRight, BookMarked, BookOpen, Mic2, NotebookPen } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import SectionHeading from '../components/SectionHeading'
-import { isSupabaseConfigured } from '../lib/supabase'
 
-const entries = [
+const collections = [
   {
-    icon: BookOpen,
-    title: '阅读圣经',
-    text: '从书卷、章节、背景与结构进入经文。',
+    number: 'I',
+    english: 'Scripture',
+    title: '浏览圣经',
+    text: '从创世记到启示录，按书卷与章节安静阅读。',
     to: '/bible',
   },
   {
-    icon: Mic2,
-    title: '讲道资源',
-    text: '保存讲道音频、摘要、中心思想与回应。',
+    number: 'II',
+    english: 'Sermon Archive',
+    title: '讲道资料',
+    text: '聆听讲道，并阅读经文脉络、摘要与研经整理。',
     to: '/sermons',
   },
   {
-    icon: NotebookPen,
-    title: '我的笔记',
-    text: '把理解、疑问和祷告整理成长期记录。',
-    to: '/bible',
-  },
-  {
-    icon: BookMarked,
-    title: '学习计划',
-    text: '按书卷和主题建立持续阅读节奏。',
+    number: 'III',
+    english: 'Study',
+    title: '研经阅读',
+    text: '在译文、历史背景与整本圣经的连接中继续学习。',
     to: '/bible',
   },
 ]
@@ -43,35 +38,53 @@ export default function HomePage() {
       <section className="hero">
         <div className="container hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow">SCRIPTURE JOURNEY</span>
-            <h1>让圣经学习，成为一条可以长期行走的路。</h1>
-            <p>
-              一个安静、清晰、可积累的数字神学院空间。阅读经文，理解背景，整理讲道，也留下自己的回应。
+            <p className="hero-volume">Scripture Journey · Digital Seminary</p>
+            <span className="hero-ornament" aria-hidden="true">✦</span>
+            <h1>在这里，慢慢读完整本圣经。</h1>
+            <p className="hero-intro">
+              经文、讲道与研经资料，安静地收录在同一座数字书房。
             </p>
-            <div className="hero-actions">
-              <Link className="button button-primary" to="/bible">
-                开始阅读 <ArrowRight size={17} />
-              </Link>
-              <Link className="button button-secondary" to="/sermons">
-                查看讲道
-              </Link>
-            </div>
-            {!isSupabaseConfigured && (
-              <div className="setup-note">
-                项目已创建，下一步只需填入 Supabase 连接信息。
-              </div>
-            )}
+            <Link className="hero-text-link" to="/bible">
+              翻开圣经目录 <ArrowRight size={16} />
+            </Link>
           </div>
 
           <div className="hero-visual" aria-hidden="true">
-            <div className="paper-card paper-back"></div>
+            <div className="paper-card paper-back" />
             <div className="paper-card paper-front">
-              <span>LUKE</span>
-              <h3>“要叫你知道所学之道，都是确实的。”</h3>
+              <span>THE GOSPEL ACCORDING TO LUKE</span>
+              <div className="paper-emblem">SJ</div>
+              <h2>“要叫你知道所学之道，都是确实的。”</h2>
               <p>路加福音 1:4</p>
-              <div className="paper-rule"></div>
-              <small>READ · STUDY · REMEMBER</small>
+              <div className="paper-rule" />
+              <small>READ · STUDY · UNDERSTAND</small>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="home-collections" aria-labelledby="collections-title">
+        <div className="container">
+          <header className="home-section-heading">
+            <div>
+              <p>THE COLLECTIONS</p>
+              <h2 id="collections-title">馆藏目录</h2>
+            </div>
+            <span>Scripture · Sermons · Study</span>
+          </header>
+
+          <div className="collection-index">
+            {collections.map((entry) => (
+              <Link className="collection-row" to={entry.to} key={entry.number}>
+                <span className="collection-number">{entry.number}</span>
+                <span className="collection-name">
+                  <small>{entry.english}</small>
+                  <strong>{entry.title}</strong>
+                </span>
+                <span className="collection-description">{entry.text}</span>
+                <ArrowRight size={17} />
+              </Link>
+            ))}
           </div>
         </div>
       </section>
@@ -81,7 +94,7 @@ export default function HomePage() {
           <div className="home-quick-heading">
             <div>
               <span className="eyebrow">OPEN A BOOK</span>
-              <h2 id="quick-start-title">从经文本身开始</h2>
+              <h2 id="quick-start-title">从一卷书开始</h2>
             </div>
             <Link className="text-link" to="/bible">
               完整圣经目录 <ArrowRight size={16} />
@@ -102,46 +115,6 @@ export default function HomePage() {
                 </div>
                 <em>{book.chapters} chapters</em>
                 <ArrowRight size={16} />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="content-section">
-        <div className="container">
-          <SectionHeading
-            eyebrow="CONTINUE"
-            title="继续学习"
-            description="你的阅读进度、最近章节和讲道记录将从 Supabase 自动出现。"
-          />
-          <div className="continue-card">
-            <div>
-              <span className="eyebrow">尚未开始</span>
-              <h3>从一卷书开始，而不是从功能开始。</h3>
-              <p>第一阶段建议从《路加福音》开始建立完整内容。</p>
-            </div>
-            <Link className="text-link" to="/bible">
-              浏览书卷 <ArrowRight size={16} />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="content-section muted-section">
-        <div className="container">
-          <SectionHeading
-            eyebrow="CORE"
-            title="四个核心入口"
-            description="第一版只保留真正重要的内容，不再把所有功能同时堆在首页。"
-          />
-          <div className="entry-grid">
-            {entries.map(({ icon: Icon, title, text, to }) => (
-              <Link className="entry-card" to={to} key={title}>
-                <Icon size={22} />
-                <h3>{title}</h3>
-                <p>{text}</p>
-                <span>进入 <ArrowRight size={15} /></span>
               </Link>
             ))}
           </div>
