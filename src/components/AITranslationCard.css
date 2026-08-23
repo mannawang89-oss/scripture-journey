@@ -6,8 +6,8 @@
   border: 1px solid var(--line);
   background: linear-gradient(
     135deg,
-    rgba(251, 248, 242, .92),
-    rgba(238, 229, 215, .72)
+    rgba(48, 35, 29, .92),
+    rgba(29, 22, 19, .88)
   );
 }
 

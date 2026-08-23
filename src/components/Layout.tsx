@@ -55,7 +55,6 @@ export default function Layout() {
         <div className="container footer-inner">
           <div>
             <strong>Scripture Journey</strong>
-            <p>在经文、历史与信仰之间，建立一条可以长期行走的路。</p>
           </div>
           <div className="footer-icon"><Mic2 size={18} /></div>
         </div>
