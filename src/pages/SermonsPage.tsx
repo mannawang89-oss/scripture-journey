@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import SectionHeading from '../components/SectionHeading'
 import { supabase } from '../lib/supabase'
 
+const SERMONS_PER_PAGE = 7
+
 type Sermon = {
   id: string
   title: string
@@ -21,6 +23,7 @@ export default function SermonsPage() {
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [query, setQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     async function loadSermons() {
@@ -67,6 +70,14 @@ export default function SermonsPage() {
     })
   }, [query, sermons])
 
+  const pageCount = Math.ceil(
+    filteredSermons.length / SERMONS_PER_PAGE,
+  )
+  const paginatedSermons = filteredSermons.slice(
+    (currentPage - 1) * SERMONS_PER_PAGE,
+    currentPage * SERMONS_PER_PAGE,
+  )
+
   function formatDate(date: string | null) {
     if (!date) return '日期待补充'
 
@@ -91,7 +102,10 @@ export default function SermonsPage() {
               <Search size={18} />
               <input
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  setCurrentPage(1)
+                }}
                 placeholder="搜索标题、讲员或经文"
               />
             </label>
@@ -117,9 +131,10 @@ export default function SermonsPage() {
             <p>请尝试更换搜索关键词。</p>
           </div>
         ) : (
-          <div className="sermon-card-grid">
-            {filteredSermons.map((sermon) => (
-              <article className="sermon-card" key={sermon.id}>
+          <>
+            <div className="sermon-card-grid">
+              {paginatedSermons.map((sermon) => (
+                <article className="sermon-card" key={sermon.id}>
                 <div className="sermon-card-top">
                   <span className="sermon-card-eyebrow">
                     SERMON
@@ -165,9 +180,41 @@ export default function SermonsPage() {
                     打开详情
                   </Link>
                 </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+
+            {pageCount > 1 && (
+              <nav
+                className="sermon-pagination"
+                aria-label="讲道分页"
+              >
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() =>
+                    setCurrentPage((page) => page - 1)
+                  }
+                >
+                  上一页
+                </button>
+
+                <span>
+                  {currentPage} / {pageCount}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={currentPage === pageCount}
+                  onClick={() =>
+                    setCurrentPage((page) => page + 1)
+                  }
+                >
+                  下一页
+                </button>
+              </nav>
+            )}
+          </>
         )}
       </div>
     </section>

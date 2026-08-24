@@ -1078,7 +1078,7 @@ padding-top:26px;
 
   border-radius: 999px;
 
-  background: #76502f;
+  background: #b75432;
 
   color: white !important;
 
@@ -1091,11 +1091,49 @@ padding-top:26px;
 }
 
 .sermon-detail-button:hover {
-  background: #5f3f25;
+  background: #913b25;
 
   transform: translateY(-2px);
 
-  box-shadow: 0 8px 22px rgba(79,52,30,.3);
+  box-shadow: 0 8px 22px rgba(145,59,37,.32);
+}
+
+.sermon-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 48px;
+}
+
+.sermon-pagination button {
+  min-width: 88px;
+  padding: 10px 18px;
+  border: 1px solid rgba(91, 57, 35, .34);
+  border-radius: 999px;
+  color: #4b3324;
+  background: rgba(255, 250, 240, .72);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease;
+}
+
+.sermon-pagination button:hover:not(:disabled) {
+  border-color: #b75432;
+  background: #fff8eb;
+}
+
+.sermon-pagination button:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.sermon-pagination span {
+  min-width: 48px;
+  color: #715542;
+  text-align: center;
+  font-weight: 600;
 }
 
 /* Sermon archive hero */
