@@ -1078,7 +1078,7 @@ padding-top:26px;
 
   border-radius: 999px;
 
-  background: #7b4a2d;
+  background: #b75432;
 
   color: white !important;
 
@@ -1091,11 +1091,11 @@ padding-top:26px;
 }
 
 .sermon-detail-button:hover {
-  background: #694027;
+  background: #913b25;
 
   transform: translateY(-2px);
 
-  box-shadow: 0 8px 20px rgba(123,74,45,.22);
+  box-shadow: 0 8px 22px rgba(145,59,37,.32);
 }
 
 /* Sermon archive hero */
