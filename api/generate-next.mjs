@@ -2,7 +2,7 @@ export const config = { maxDuration: 300 }
 
 const DEFAULT_BATCH_SIZE = 24
 const MAX_BATCH_SIZE = 30
-const EXECUTION_BUDGET_MS = 270_000
+const EXECUTION_BUDGET_MS = 240_000
 
 const url = process.env.VITE_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -68,14 +68,18 @@ async function generateChapter(translationId, target) {
     chunks.push(missingVerses.slice(index, index + 10))
   }
 
-  const generatedChunks = await Promise.all(chunks.map(async (chunk) => {
+  const generatedChunks = []
+  for (const chunk of chunks) {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       const result = await gemini(versePrompt(target.book, target.chapter, chunk))
-      if (Array.isArray(result) && result.length === chunk.length) return result
+      if (Array.isArray(result) && result.length === chunk.length) {
+        generatedChunks.push(result)
+        break
+      }
       if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 3000))
+      else throw new Error('Gemini verse count mismatch')
     }
-    throw new Error('Gemini verse count mismatch')
-  }))
+  }
   const generated = generatedChunks.flat()
 
   if (generated.length) {
@@ -137,6 +141,7 @@ export default async function handler(request, response) {
 
     return response.status(200).json({ complete: false, generatedChapters })
   } catch (error) {
+    console.error('Bible generation failed:', error)
     return response.status(500).json({ error: error.message })
   }
 }
