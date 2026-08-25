@@ -1,5 +1,9 @@
 export const config = { maxDuration: 300 }
 
+const DEFAULT_BATCH_SIZE = 24
+const MAX_BATCH_SIZE = 30
+const EXECUTION_BUDGET_MS = 270_000
+
 const url = process.env.VITE_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const geminiKey = process.env.GEMINI_API_KEY
@@ -14,13 +18,22 @@ async function db(path, options = {}) {
 }
 
 async function gemini(prompt) {
-  const result = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }),
-  })
-  if (!result.ok) throw new Error(`Gemini ${result.status}: ${await result.text()}`)
-  const body = await result.json()
-  return JSON.parse(body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '')
+  let lastError
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const result = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }),
+      })
+      if (!result.ok) throw new Error(`Gemini ${result.status}: ${await result.text()}`)
+      const body = await result.json()
+      return JSON.parse(body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '')
+    } catch (error) {
+      lastError = error
+      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 5000))
+    }
+  }
+  throw lastError
 }
 
 function versePrompt(book, chapter, verses) {
@@ -31,6 +44,72 @@ function studyPrompt(book, chapter, verses) {
   return `根据以下 World English Bible 经文，为${book.name_en}（${book.name_zh}）第${chapter}章生成严谨的简体中文研读。四项各180–350中文字，不虚构作者、年代或历史结论，有争议处使用审慎措辞。只输出合法 JSON：{"overview_zh":"","structure_zh":"","historical_background_zh":"","theological_themes_zh":""}\n${verses.map(v => `${v.verse_number}. ${v.verse_text}`).join('\n')}`
 }
 
+async function findNextChapter(translationId, books) {
+  for (const book of books) {
+    for (let chapter = 1; chapter <= book.chapter_count; chapter += 1) {
+      const [rows, studies, verses] = await Promise.all([
+        db(`bible_ai_verse_content?translation_id=eq.${translationId}&book_id=eq.${book.id}&chapter_number=eq.${chapter}&select=verse_number`),
+        db(`bible_ai_chapter_studies?translation_id=eq.${translationId}&book_id=eq.${book.id}&chapter_number=eq.${chapter}&select=chapter_number`),
+        db(`bible_verses?translation_id=eq.${translationId}&book_id=eq.${book.id}&chapter_number=eq.${chapter}&select=verse_number,verse_text&order=verse_number`),
+      ])
+      if (verses.length && (rows.length < verses.length || !studies.length)) {
+        return { book, chapter, verses, existingRows: rows, hasStudy: studies.length > 0 }
+      }
+    }
+  }
+  return null
+}
+
+async function generateChapter(translationId, target) {
+  const existingVerseNumbers = new Set(target.existingRows.map(row => row.verse_number))
+  const missingVerses = target.verses.filter(verse => !existingVerseNumbers.has(verse.verse_number))
+  const chunks = []
+  for (let index = 0; index < missingVerses.length; index += 10) {
+    chunks.push(missingVerses.slice(index, index + 10))
+  }
+
+  const generatedChunks = await Promise.all(chunks.map(async (chunk) => {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const result = await gemini(versePrompt(target.book, target.chapter, chunk))
+      if (Array.isArray(result) && result.length === chunk.length) return result
+      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 3000))
+    }
+    throw new Error('Gemini verse count mismatch')
+  }))
+  const generated = generatedChunks.flat()
+
+  if (generated.length) {
+    await db('bible_ai_verse_content?on_conflict=translation_id,book_id,chapter_number,verse_number', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify(generated.map(v => ({
+        translation_id: translationId,
+        book_id: target.book.id,
+        chapter_number: target.chapter,
+        ...v,
+        model,
+      }))),
+    })
+  }
+
+  if (!target.hasStudy) {
+    const study = await gemini(studyPrompt(target.book, target.chapter, target.verses))
+    await db('bible_ai_chapter_studies?on_conflict=translation_id,book_id,chapter_number', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({
+        translation_id: translationId,
+        book_id: target.book.id,
+        chapter_number: target.chapter,
+        ...study,
+        model,
+      }),
+    })
+  }
+
+  return generated.length
+}
+
 export default async function handler(request, response) {
   if (!url || !serviceKey || !geminiKey) return response.status(503).json({ error: 'Missing server configuration' })
   const authorization = request.headers.authorization
@@ -39,30 +118,22 @@ export default async function handler(request, response) {
   const authorizedManual = request.method === 'POST' && authorization === `Bearer ${geminiKey}`
   if (!authorizedCron && !authorizedManual) return response.status(401).json({ error: 'Unauthorized' })
   try {
+    const startedAt = Date.now()
+    const requestedBatchSize = Number(request.query?.batch ?? DEFAULT_BATCH_SIZE)
+    const batchSize = Math.min(MAX_BATCH_SIZE, Math.max(1, Number.isFinite(requestedBatchSize) ? requestedBatchSize : DEFAULT_BATCH_SIZE))
     const [translation] = await db('bible_translations?code=eq.WEB&select=id&limit=1')
-    const books = await db('bible_books?name_en=in.(Genesis,Luke)&select=id,name_en,name_zh,chapter_count,book_order&order=book_order')
-    let target
-    for (const book of books) {
-      for (let chapter = 1; chapter <= book.chapter_count; chapter += 1) {
-        const rows = await db(`bible_ai_verse_content?translation_id=eq.${translation.id}&book_id=eq.${book.id}&chapter_number=eq.${chapter}&select=verse_number`)
-        const studies = await db(`bible_ai_chapter_studies?translation_id=eq.${translation.id}&book_id=eq.${book.id}&chapter_number=eq.${chapter}&select=chapter_number`)
-        const verses = await db(`bible_verses?translation_id=eq.${translation.id}&book_id=eq.${book.id}&chapter_number=eq.${chapter}&select=verse_number,verse_text&order=verse_number`)
-        if (rows.length < verses.length || !studies.length) { target = { book, chapter, verses }; break }
-      }
-      if (target) break
+    if (!translation) throw new Error('WEB translation not found')
+    const books = await db('bible_books?name_en=in.(Genesis,Exodus,Leviticus,Numbers,Deuteronomy)&select=id,name_en,name_zh,chapter_count,book_order&order=book_order')
+    const generatedChapters = []
+
+    while (generatedChapters.length < batchSize && Date.now() - startedAt < EXECUTION_BUDGET_MS) {
+      const target = await findNextChapter(translation.id, books)
+      if (!target) return response.status(200).json({ complete: true, generatedChapters })
+      const verses = await generateChapter(translation.id, target)
+      generatedChapters.push({ book: target.book.name_en, chapter: target.chapter, verses })
     }
-    if (!target) return response.status(200).json({ complete: true })
-    const generated = []
-    for (let index = 0; index < target.verses.length; index += 10) {
-      const chunk = target.verses.slice(index, index + 10)
-      const result = await gemini(versePrompt(target.book, target.chapter, chunk))
-      if (!Array.isArray(result) || result.length !== chunk.length) throw new Error('Gemini verse count mismatch')
-      generated.push(...result)
-    }
-    await db('bible_ai_verse_content?on_conflict=translation_id,book_id,chapter_number,verse_number', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(generated.map(v => ({ translation_id: translation.id, book_id: target.book.id, chapter_number: target.chapter, ...v, model }))) })
-    const study = await gemini(studyPrompt(target.book, target.chapter, target.verses))
-    await db('bible_ai_chapter_studies?on_conflict=translation_id,book_id,chapter_number', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ translation_id: translation.id, book_id: target.book.id, chapter_number: target.chapter, ...study, model }) })
-    return response.status(200).json({ complete: false, generated: `${target.book.name_en} ${target.chapter}`, verses: generated.length })
+
+    return response.status(200).json({ complete: false, generatedChapters })
   } catch (error) {
     return response.status(500).json({ error: error.message })
   }
