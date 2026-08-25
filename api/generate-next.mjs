@@ -123,7 +123,9 @@ export default async function handler(request, response) {
     const batchSize = Math.min(MAX_BATCH_SIZE, Math.max(1, Number.isFinite(requestedBatchSize) ? requestedBatchSize : DEFAULT_BATCH_SIZE))
     const [translation] = await db('bible_translations?code=eq.WEB&select=id&limit=1')
     if (!translation) throw new Error('WEB translation not found')
-    const books = await db('bible_books?name_en=in.(Genesis,Exodus,Leviticus,Numbers,Deuteronomy)&select=id,name_en,name_zh,chapter_count,book_order&order=book_order')
+    const books = await db('bible_books?name_en=in.(Luke,Genesis,Exodus,Leviticus,Numbers,Deuteronomy)&select=id,name_en,name_zh,chapter_count,book_order')
+    const generationOrder = ['Luke', 'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy']
+    books.sort((left, right) => generationOrder.indexOf(left.name_en) - generationOrder.indexOf(right.name_en))
     const generatedChapters = []
 
     while (generatedChapters.length < batchSize && Date.now() - startedAt < EXECUTION_BUDGET_MS) {
