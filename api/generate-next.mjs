@@ -146,7 +146,14 @@ export default async function handler(request, response) {
   const authorizedCron = request.method === 'GET' && Boolean(cronSecret) && authorization === `Bearer ${cronSecret}`
   const authorizedManual = request.method === 'POST' && Boolean(cronSecret) && authorization === `Bearer ${cronSecret}`
   if (!authorizedCron && !authorizedManual) return response.status(401).json({ error: 'Unauthorized' })
+  let runId = null
   try {
+    const [run] = await db('bible_generation_runs', {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ status: 'running', model: model || null }),
+    })
+    runId = run.id
     const startedAt = Date.now()
     const requestedBatchSize = Number(request.query?.batch ?? DEFAULT_BATCH_SIZE)
     const batchSize = Math.min(MAX_BATCH_SIZE, Math.max(1, Number.isFinite(requestedBatchSize) ? requestedBatchSize : DEFAULT_BATCH_SIZE))
@@ -159,14 +166,34 @@ export default async function handler(request, response) {
 
     while (generatedChapters.length < batchSize && Date.now() - startedAt < EXECUTION_BUDGET_MS) {
       const target = await findNextChapter(translation.id, books)
-      if (!target) return response.status(200).json({ complete: true, generatedChapters })
+      if (!target) {
+        await db(`bible_generation_runs?id=eq.${runId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'completed', model, generated_chapters: generatedChapters, finished_at: new Date().toISOString() }),
+        })
+        return response.status(200).json({ complete: true, generatedChapters })
+      }
       const verses = await generateChapter(translation.id, target)
       generatedChapters.push({ book: target.book.name_en, chapter: target.chapter, verses })
     }
 
+    await db(`bible_generation_runs?id=eq.${runId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'completed', model, generated_chapters: generatedChapters, finished_at: new Date().toISOString() }),
+    })
     return response.status(200).json({ complete: false, generatedChapters })
   } catch (error) {
     console.error('Bible generation failed:', error)
+    if (runId) {
+      try {
+        await db(`bible_generation_runs?id=eq.${runId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'failed', model: model || null, error_message: error.message, finished_at: new Date().toISOString() }),
+        })
+      } catch (loggingError) {
+        console.error('Failed to record Bible generation error:', loggingError)
+      }
+    }
     return response.status(500).json({ error: error.message })
   }
 }
