@@ -1,5 +1,3 @@
-import { generateText } from 'ai'
-
 export const config = { maxDuration: 300 }
 
 const DEFAULT_BATCH_SIZE = 24
@@ -8,7 +6,8 @@ const EXECUTION_BUDGET_MS = 240_000
 
 const url = process.env.VITE_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const model = 'openai/gpt-5.4-mini-fast'
+const groqKey = process.env.GROQ_API_KEY
+let model = process.env.GROQ_MODEL ?? ''
 const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' }
 
 async function db(path, options = {}) {
@@ -19,14 +18,42 @@ async function db(path, options = {}) {
 }
 
 async function generateJson(prompt) {
+  if (!model) {
+    const modelsResponse = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${groqKey}` },
+    })
+    if (!modelsResponse.ok) throw new Error(`Groq models ${modelsResponse.status}: ${await modelsResponse.text()}`)
+    const available = new Set((await modelsResponse.json()).data?.map(item => item.id) ?? [])
+    model = ['openai/gpt-oss-120b', 'qwen/qwen3-32b', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b']
+      .find(candidate => available.has(candidate)) ?? ''
+    if (!model) throw new Error('No supported Groq text model is available')
+  }
   let lastError
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const result = await generateText({ model, prompt })
-      const json = result.text.trim().replace(/^```json\s*/i, '').replace(/\s*```$/, '')
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: '你是严谨的圣经翻译与释经编辑。只输出合法 JSON，不输出 Markdown。' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.1,
+        }),
+      })
+      if (!response.ok) {
+        const error = new Error(`Groq ${response.status} (${model}): ${await response.text()}`)
+        error.status = response.status
+        throw error
+      }
+      const body = await response.json()
+      const json = body.choices?.[0]?.message?.content?.trim().replace(/^```json\s*/i, '').replace(/\s*```$/, '') ?? ''
       return JSON.parse(json)
     } catch (error) {
       lastError = error
+      if (error.status === 401 || error.status === 403) break
       if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 3000))
     }
   }
@@ -39,10 +66,6 @@ function versePrompt(book, chapter, verses) {
 
 function studyPrompt(book, chapter, verses) {
   return `根据以下 World English Bible 经文，为${book.name_en}（${book.name_zh}）第${chapter}章生成严谨的简体中文研读。四项各180–350中文字，不虚构作者、年代或历史结论，有争议处使用审慎措辞。只输出合法 JSON：{"overview_zh":"","structure_zh":"","historical_background_zh":"","theological_themes_zh":""}\n${verses.map(v => `${v.verse_number}. ${v.verse_text}`).join('\n')}`
-}
-
-function chapterPrompt(book, chapter, verses) {
-  return `根据以下 World English Bible 经文，为${book.name_en}（${book.name_zh}）第${chapter}章生成完整的简体中文多译本与章节研读。每节必须返回 literal_zh（贴近原句）、natural_zh（自然现代中文）、source_language_notes_zh（谨慎且简洁地解释确有帮助的原文）、first_readers_zh（简洁说明最初读者可能的理解）。不添加经文没有表达的事实；各字段控制在一至两句。章节研读四项各180–350中文字。只输出合法 JSON，节号与数量必须完全一致：{"verses":[{"verse_number":1,"literal_zh":"","natural_zh":"","source_language_notes_zh":"","first_readers_zh":""}],"study":{"overview_zh":"","structure_zh":"","historical_background_zh":"","theological_themes_zh":""}}\n${verses.map(v => `${v.verse_number}. ${v.verse_text}`).join('\n')}`
 }
 
 async function findNextChapter(translationId, books) {
@@ -64,38 +87,6 @@ async function findNextChapter(translationId, books) {
 async function generateChapter(translationId, target) {
   const existingVerseNumbers = new Set(target.existingRows.map(row => row.verse_number))
   const missingVerses = target.verses.filter(verse => !existingVerseNumbers.has(verse.verse_number))
-
-  if (missingVerses.length === target.verses.length && !target.hasStudy) {
-    const chapter = await generateJson(chapterPrompt(target.book, target.chapter, target.verses))
-    const expectedNumbers = target.verses.map(verse => verse.verse_number)
-    const actualNumbers = chapter?.verses?.map(verse => Number(verse.verse_number)) ?? []
-    if (!chapter?.study || expectedNumbers.length !== actualNumbers.length || expectedNumbers.some((number, index) => number !== actualNumbers[index])) {
-      throw new Error('Complete chapter response mismatch')
-    }
-    await db('bible_ai_verse_content?on_conflict=translation_id,book_id,chapter_number,verse_number', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates' },
-      body: JSON.stringify(chapter.verses.map(verse => ({
-        translation_id: translationId,
-        book_id: target.book.id,
-        chapter_number: target.chapter,
-        ...verse,
-        model,
-      }))),
-    })
-    await db('bible_ai_chapter_studies?on_conflict=translation_id,book_id,chapter_number', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates' },
-      body: JSON.stringify({
-        translation_id: translationId,
-        book_id: target.book.id,
-        chapter_number: target.chapter,
-        ...chapter.study,
-        model,
-      }),
-    })
-    return chapter.verses.length
-  }
 
   const chunks = []
   for (let index = 0; index < missingVerses.length; index += 10) {
@@ -149,7 +140,7 @@ async function generateChapter(translationId, target) {
 }
 
 export default async function handler(request, response) {
-  if (!url || !serviceKey) return response.status(503).json({ error: 'Missing server configuration' })
+  if (!url || !serviceKey || !groqKey) return response.status(503).json({ error: 'Missing server configuration' })
   const authorization = request.headers.authorization
   const cronSecret = process.env.CRON_SECRET
   const authorizedCron = request.method === 'GET' && Boolean(cronSecret) && authorization === `Bearer ${cronSecret}`
