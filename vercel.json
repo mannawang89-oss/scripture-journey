@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/generate-next",
-      "schedule": "25 13 * * *"
+      "schedule": "25 15 * * *"
     }
   ],
   "rewrites": [
